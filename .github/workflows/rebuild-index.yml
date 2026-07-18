@@ -1,0 +1,35 @@
+name: Rebuild Rev17 index
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "parts/**"
+      - ".github/workflows/rebuild-index.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Rebuild index.html
+        run: |
+          cat parts/part-*.txt | base64 -d > index.html
+
+      - name: Commit rebuilt app
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "Restore lunar and holiday calendar Rev17"
+            git push
+          fi
