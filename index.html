@@ -1,37 +1,634 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#171a1f">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>1560 여름 시간표</title>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="format-detection" content="telephone=no">
+<meta name="theme-color" content="#b4bac3">
+
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
+<meta name="application-name" content="1560 시간표">
+<meta name="apple-mobile-web-app-title" content="1560 시간표">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="msapplication-TileColor" content="#171a1f">
+<title>1560 여름 시간표 앱 · Rev.17</title>
 <style>
-:root{--bg:#b4bac3;--panel:#d6dbe1;--dark:#171a1f;--red:#e23b2e;--green:#177226;--blue:#1e63d6;--line:#bcc3cb;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans KR",sans-serif}*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg);color:#111}body{padding:14px 10px calc(86px + env(safe-area-inset-bottom))}.wrap{max-width:470px;margin:auto}.head{background:var(--dark);color:#fff;border-radius:19px;padding:18px}.route{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.route strong{font:900 clamp(38px,12vw,55px)/1 monospace;color:var(--red)}.route em{font-style:normal;color:#ffd46b;font-size:clamp(18px,5vw,24px);font-weight:900}.rev{text-align:right;color:#aaa;font-weight:800;white-space:nowrap}.buslink{display:inline-flex;align-items:center;gap:6px;margin-top:10px;padding:7px 11px;border-radius:999px;background:#2b66b1;color:#fff!important;text-decoration:none;font-weight:900;font-size:14px}.clock{border-top:1px solid #333;margin-top:14px;padding-top:14px;display:flex;justify-content:space-between;align-items:center;gap:10px}.clock .today{font-size:clamp(17px,5vw,24px);font-weight:900;white-space:nowrap}.clock b{font-size:clamp(18px,6vw,28px);line-height:1;font-variant-numeric:tabular-nums;white-space:nowrap}.links,.tabs,.summary{display:grid;gap:8px;margin-top:12px}.links{grid-template-columns:repeat(3,1fr)}.links a,.tabs button,.summary div{border:0;border-radius:12px;background:var(--panel);padding:12px;text-align:center;text-decoration:none;color:#111;font-weight:900;font-family:inherit}.tabs{grid-template-columns:repeat(3,1fr)}.tabs button{cursor:pointer}.tabs button.active{background:var(--green);color:#fff}.summary{grid-template-columns:repeat(3,1fr)}.summary b{display:block;font-size:20px;margin-top:4px}.notice{margin-top:11px;background:var(--panel);border-left:4px solid var(--red);border-radius:12px;padding:12px;display:flex;justify-content:space-between;font-weight:900}.notice span:last-child{color:var(--red)}.board{margin-top:11px;background:var(--panel);border-radius:17px;overflow:hidden}table{width:100%;border-collapse:collapse;table-layout:fixed}th{background:var(--green);color:#fff;padding:11px 1px}td{text-align:center;padding:14px 1px;border-top:1px solid var(--line);font-weight:900;color:var(--green);font-variant-numeric:tabular-nums;position:relative}td:nth-child(2),td:nth-child(3){background:#ffe985}.no{width:15%;color:#111}.edge{color:var(--red)!important}.ext{display:block;font-size:10px;color:#965600;margin-top:4px}.next{background:#1a8f35!important;color:#fff!important;box-shadow:inset 0 0 0 3px #ffdc49}.next:after{content:"다음";position:absolute;top:2px;right:3px;font-size:8px;background:#ffdc49;color:#111;border-radius:6px;padding:1px 3px}.next .ext{color:#fff}.guide{text-align:center;color:#606772;font-size:11px;margin:9px 0 0}.foot{text-align:center;color:#666;font-size:11px;margin-top:14px}.tools{position:fixed;right:10px;bottom:calc(18px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:12px;z-index:20}.tools button{width:50px;height:50px;border-radius:50%;border:0;background:#565b62;color:#fff;font-size:24px;box-shadow:0 5px 16px #0006;cursor:pointer}.tools button.calendar{background:#b3263d}.tools button.gps{background:#315cbf}.modal{display:none;position:fixed;inset:0;background:#0009;z-index:50;align-items:center;justify-content:center;padding:18px}.modal.open{display:flex}.card{width:min(400px,100%);max-height:calc(100dvh - 36px);overflow:auto;background:#11141c;color:#fff;border-radius:22px;padding:18px}.cardhead{display:flex;justify-content:space-between;align-items:center;gap:12px}.cardhead h2{margin:0}.close{border:0;border-radius:50%;width:38px;height:38px;font-size:22px}.coords{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:15px}.coord{background:#252832;border-radius:14px;text-align:center;padding:18px}.coord b{font-size:29px}.coord span{display:block;color:#bbb;margin-top:5px}.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}.actions button,.actions a{border:0;border-radius:13px;padding:15px 8px;text-align:center;font-weight:900;text-decoration:none;color:#111;font-family:inherit}.loc{background:#79ff3b}.naver{background:#1ec800;color:#fff!important}.kakao{background:#fae100}.msg{margin-top:13px;background:#252832;border-radius:12px;padding:12px;color:#ddd;line-height:1.5}.calnav{display:flex;justify-content:space-between;align-items:center;margin-top:14px}.calnav button{border:0;border-radius:10px;padding:9px 13px;font-weight:900}.month{font-size:19px;font-weight:900}.week,.calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}.week{margin-top:12px;text-align:center;color:#bbb;font-size:12px;font-weight:900}.calgrid{margin-top:5px}.calday{border:0;border-radius:9px;background:#252832;color:#fff;min-height:55px;padding:5px 2px;font-family:inherit}.calday.muted{opacity:.4}.calday.today{background:#177226;outline:2px solid #fff}.calday .solar{display:block;font-weight:950;font-size:15px}.calday .lunar{display:block;color:#bfc5ce;font-size:8px;margin-top:4px}.calselected{margin-top:12px;background:#252832;border-radius:12px;padding:12px;line-height:1.55}.sun{color:#ff747c!important}.sat{color:#7ab2ff!important}@media(max-width:360px){body{padding-left:7px;padding-right:7px}.head{padding:15px}.route strong{font-size:38px}.route em{font-size:18px}.rev{font-size:13px}.clock .today{font-size:17px}.clock b{font-size:20px}td{font-size:13px;padding:12px 0}.links a{font-size:13px;padding:11px 4px}.tools button{width:46px;height:46px}}
+:root{
+  --bg:#b4bac3; --board:#d6dbe1; --board-alt:#cbd1d8; --ink:#11151b;
+  --muted:#545b65; --faint:#7c838d; --line:#bcc3cb; --brand:#e23b2e;
+  --extra:#9a5a00; --accent:#177226; --accent-soft:rgba(23,114,38,.10);
+  font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--ink);-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
+html{min-height:100%;background:var(--bg)}
+body{
+  min-height:100vh;min-height:100dvh;padding:calc(16px + env(safe-area-inset-top)) 12px calc(28px + env(safe-area-inset-bottom));
+  display:flex;justify-content:center;
+}
+.wrap{width:100%;max-width:460px;min-width:0}
+.plate{
+  background:#171a1f;color:#fff;border-radius:17px;padding:15px 17px;
+  box-shadow:0 12px 30px -18px rgba(0,0,0,.65);
+}
+.plate-top,.clock{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.route-no{font:900 41px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--brand);letter-spacing:1px}
+.route-no small{font:800 16px/1.2 inherit;color:#ffd46b;margin-left:5px;letter-spacing:0}
+.route-left{display:flex;flex-direction:column;align-items:flex-start;gap:7px}
+.gyeonggi-badge{display:inline-flex;align-items:center;gap:6px;background:#2b66b1;color:#fff;border:1px solid rgba(255,255,255,.22);border-radius:999px;padding:5px 10px;font-size:12px;font-weight:900;letter-spacing:-.2px;box-shadow:inset 0 1px 0 rgba(255,255,255,.15)}
+.gyeonggi-badge .bus{font-size:16px;line-height:1}
+.route-meta{text-align:right;font-size:11px;line-height:1.55;color:#aeb4c0}
+.route-meta b{color:#fff}
+.clock{border-top:1px solid rgba(255,255,255,.1);margin-top:12px;padding-top:11px}
+.live{font-size:12px;color:#c7ccd5;display:flex;align-items:center;gap:7px}
+.dot{width:7px;height:7px;border-radius:50%;background:#2ecc71;box-shadow:0 0 8px #2ecc71}
+#now{font:700 clamp(13px,4vw,16px) ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.5px;white-space:nowrap;flex:0 0 auto}.clock{min-width:0}.live{min-width:0;white-space:nowrap}
+
+.info-bar{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.info-bar a,.info-bar button{
+  -webkit-appearance:none;appearance:none;touch-action:manipulation;
+  background:var(--board);color:var(--ink);text-decoration:none;border-radius:12px;padding:11px 4px;
+  text-align:center;font-size:13px;font-weight:800;box-shadow:0 1px 0 var(--line);border:0;font-family:inherit;cursor:pointer;
+}
+.finance-modal{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.56)}
+.finance-modal.open{display:flex}
+.finance-card{width:min(360px,100%);background:#fff;border-radius:20px;padding:18px;box-shadow:0 24px 70px rgba(0,0,0,.35)}
+.finance-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.finance-title{font-size:18px;font-weight:950;color:#171a1f}
+.finance-close{border:0;background:#eef1f4;border-radius:999px;width:36px;height:36px;font-size:21px;cursor:pointer;color:#31363d}
+.finance-links{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.finance-links a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;min-height:96px;text-decoration:none;border-radius:15px;font-weight:900;font-size:16px;color:#fff}
+.finance-links .fx{background:#1877c9}.finance-links .stock{background:#177226}
+.finance-links .ico{font-size:27px}
+.finance-note{margin-top:12px;font-size:11.5px;line-height:1.5;color:#69717c;text-align:center}
+.gyeonggi-badge{text-decoration:none}
+.switch{
+  position:relative;display:grid;grid-template-columns:repeat(3,1fr);margin-top:12px;padding:5px;
+  background:var(--board);border-radius:14px;box-shadow:0 1px 0 var(--line);
+}
+.ind{
+  position:absolute;left:5px;top:5px;width:calc((100% - 10px)/3);height:calc(100% - 10px);
+  border-radius:10px;background:var(--accent);transition:transform .25s,background .25s;
+}
+.seg{
+  -webkit-appearance:none;appearance:none;touch-action:manipulation;
+  position:relative;z-index:1;border:0;background:transparent;padding:10px 2px 8px;border-radius:10px;
+  color:var(--muted);font:800 14px/1.15 inherit;cursor:pointer
+}
+.seg .cnt{display:block;font-size:10px;margin-top:3px;color:var(--faint)}
+.seg[aria-selected="true"],.seg[aria-selected="true"] .cnt{color:#fff}
+
+.chips{display:flex;gap:8px;margin-top:11px}
+.chip{flex:1;background:var(--board);border-radius:12px;padding:9px 6px;text-align:center;box-shadow:0 1px 0 var(--line)}
+.chip .k{font-size:11px;color:var(--muted);font-weight:800}
+.chip .v{display:block;margin-top:3px;font-size:18px;font-weight:900;color:var(--ink);font-variant-numeric:tabular-nums}
+.chip .v.acc{color:var(--accent)}
+
+.notice{
+  margin-top:11px;background:var(--board);border-radius:13px;padding:11px 13px;
+  border-left:4px solid var(--brand);display:flex;justify-content:space-between;
+  font-size:13px;font-weight:800;box-shadow:0 1px 0 var(--line)
+}
+.notice b{color:var(--brand)}
+.board{margin-top:11px;background:var(--board);border-radius:17px;overflow:hidden;box-shadow:0 1px 0 var(--line)}
+.grid{width:100%;border-collapse:collapse;table-layout:fixed}
+.grid col.no{width:15%}
+.grid th{background:var(--accent);color:#fff;padding:11px 1px;font-size:13px;font-weight:900}
+.grid td{
+  text-align:center;padding:14px 1px;border-top:1px solid var(--line);
+  font-size:18px;font-weight:800;color:var(--accent);font-variant-numeric:tabular-nums;
+}
+.grid td.no{font-size:16px;font-weight:900;background:linear-gradient(90deg,var(--accent-soft),transparent)}
+.grid tr:nth-child(even) td{background-color:var(--board-alt)}
+.grid tr:nth-child(even) td.no{background:linear-gradient(90deg,var(--accent-soft),transparent)}
+.grid tbody td:nth-child(2),.grid tbody td:nth-child(3){background-color:#ffe985}
+.grid td.blank{color:transparent}
+.grid td.edge{color:var(--brand)!important;font-weight:950!important}
+body[data-day="sunday"] .grid td.edge{background:#1e63d6!important;color:#fff!important;border-top-color:#174fba!important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.18)}
+body[data-day="sunday"] .grid td.edge .ext{color:#fff!important}
+.ext{display:block;margin-top:5px;color:var(--extra);font-size:11.5px;font-weight:900;line-height:1.15}
+.ext b{font-size:12px}
+.next .time{
+  display:inline-block;background:var(--accent);color:#fff;border-radius:8px;padding:3px 6px;
+}
+.extra-card{
+  margin-top:11px;background:var(--board);border-radius:14px;padding:13px 14px;
+  border-left:4px solid var(--extra);display:flex;gap:10px;box-shadow:0 1px 0 var(--line)
+}
+.extra-card .ico{font-size:20px}
+.extra-card .ttl{color:var(--extra);font-size:12.5px;font-weight:900}
+.extra-card .desc{font-size:12.5px;line-height:1.55;margin-top:4px}
+.status{text-align:center;margin-top:14px;color:var(--faint);font-size:10.5px;line-height:1.7}
+
+@media(max-width:360px){
+  body{padding-left:8px;padding-right:8px}
+  .grid td{font-size:16px;padding:13px 0}
+  .grid td.no{font-size:15px}
+  .route-no{font-size:37px}
+  .info-bar a{font-size:12px}
+}
+
+
+/* 오른쪽 빠른 기능: 음력·공휴일 달력 */
+.side-tools{
+  position:fixed;z-index:9000;right:max(10px,calc((100vw - 460px)/2 - 58px));
+  top:34%;display:flex;flex-direction:column;gap:14px;
+}
+.side-tool{
+  -webkit-appearance:none;appearance:none;touch-action:manipulation;
+  width:49px;height:49px;border:0;border-radius:50%;background:#565b62;color:#fff;
+  display:grid;place-items:center;cursor:pointer;font-family:inherit;font-size:23px;
+  box-shadow:0 7px 18px rgba(0,0,0,.30),inset 0 1px 0 rgba(255,255,255,.15);
+  -webkit-tap-highlight-color:transparent;transition:transform .18s,background .18s;
+}
+.side-tool:active{transform:scale(.94)}
+.side-tool.active{background:var(--accent)}
+.calendar-modal{position:fixed;inset:0;z-index:10000;display:none;align-items:center;justify-content:center;padding:calc(15px + env(safe-area-inset-top)) 15px calc(15px + env(safe-area-inset-bottom));background:rgba(0,0,0,.60);overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.calendar-modal.open{display:flex}
+.calendar-card{width:min(410px,100%);max-height:calc(100vh - 30px);max-height:calc(100dvh - 30px);overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;background:#f7f8fa;border-radius:21px;padding:15px;box-shadow:0 25px 75px rgba(0,0,0,.38);color:#171a1f}
+.calendar-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.calendar-heading{min-width:0}.calendar-title{font-size:19px;font-weight:950;letter-spacing:-.4px}
+.calendar-sub{margin-top:3px;color:#747c86;font-size:10.5px;font-weight:800}
+.calendar-nav{display:flex;gap:7px;align-items:center}
+.calendar-nav button,.calendar-close,.calendar-today{border:0;-webkit-appearance:none;appearance:none;touch-action:manipulation;background:#e6e9ed;color:#24282e;border-radius:10px;height:36px;min-width:36px;padding:0 10px;font-family:inherit;font-weight:900;cursor:pointer}
+.calendar-close{border-radius:50%;font-size:20px;padding:0}
+.calendar-week{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:12px;color:#606872;font-size:12px;font-weight:900;text-align:center}
+.calendar-week span:first-child{color:#df3a43}.calendar-week span:last-child{color:#1767c8}
+.calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin-top:5px}
+.calendar-day{-webkit-appearance:none;appearance:none;touch-action:manipulation;height:54px;min-width:0;border:0;border-radius:10px;background:#fff;color:#24282e;font-family:inherit;cursor:pointer;position:relative;box-shadow:0 1px 0 #dfe3e8;padding:4px 3px;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;overflow:hidden}
+.calendar-day.muted{color:#aeb4bd;background:#f0f2f5;opacity:.72}
+.calendar-day.sun .solar-no{color:#df3a43}.calendar-day.sat .solar-no{color:#1767c8}
+.calendar-day.holiday{background:#fff0f1;box-shadow:inset 0 0 0 1px #f4c8cc}
+.calendar-day.holiday .solar-no,.calendar-day.holiday .holiday-name{color:#d62f3a}
+.calendar-day.event:not(.holiday){background:#fff9e8}
+.calendar-day.today{background:var(--accent);color:#fff;box-shadow:0 0 0 2px rgba(255,255,255,.75) inset}
+.calendar-day.today .solar-no,.calendar-day.today .lunar,.calendar-day.today .holiday-name,.calendar-day.today .event-name{color:#fff!important}
+.calendar-day.selected{outline:3px solid #ffcf4d;outline-offset:-3px}
+.solar-row{display:flex;align-items:flex-start;justify-content:space-between;min-height:18px}
+.solar-no{font-size:15px;font-weight:950;line-height:1}
+.lunar{margin-top:1px;color:#7a828d;font-size:8.5px;font-weight:850;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.holiday-name,.event-name{margin-top:2px;font-size:8.1px;font-weight:950;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.holiday-name{color:#d62f3a}.event-name{color:#8a5a00}
+.calendar-legend{display:flex;align-items:center;gap:12px;margin-top:9px;color:#69717c;font-size:10px;font-weight:850}
+.legend-item{display:inline-flex;align-items:center;gap:4px}.legend-dot{width:7px;height:7px;border-radius:50%;background:#d62f3a}.legend-lunar{font-weight:950;color:#707984}
+.calendar-foot{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-top:11px}
+.calendar-selected{font-size:11.5px;line-height:1.5;color:#5d6570;font-weight:800;min-height:36px}
+.calendar-selected strong{color:#20242a;font-size:12.5px}.calendar-today{background:#171a1f;color:#fff}
+.calendar-note{margin-top:8px;color:#8a919a;font-size:9.5px;font-weight:750;line-height:1.45;text-align:center}
+
+.gps-modal{position:fixed;inset:0;z-index:10001;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.56)}
+.gps-modal.open{display:flex}
+.gps-card{width:min(380px,100%);background:linear-gradient(180deg,#101217,#161925);color:#fff;border-radius:22px;padding:18px;box-shadow:0 25px 70px rgba(0,0,0,.42)}
+.gps-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.gps-title{font-size:19px;font-weight:950;color:#fff}
+.gps-close{border:0;background:rgba(255,255,255,.12);border-radius:999px;width:36px;height:36px;font-size:21px;cursor:pointer;color:#fff}
+.gps-sub{color:#c7ccd5;font-size:12px;line-height:1.55;margin-top:2px}
+.gps-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.gps-box{background:rgba(255,255,255,.08);border-radius:14px;padding:14px 10px;text-align:center}
+.gps-box .num{font-size:30px;font-weight:950;line-height:1.1;font-variant-numeric:tabular-nums}
+.gps-box .lab{display:block;margin-top:6px;font-size:12px;color:#c7ccd5;font-weight:850}
+.gps-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.gps-actions a,.gps-actions button{-webkit-appearance:none;appearance:none;border:0;border-radius:14px;min-height:52px;padding:10px 12px;font-family:inherit;font-size:14px;font-weight:900;text-decoration:none;cursor:pointer;display:flex;align-items:center;justify-content:center;text-align:center}
+.gps-actions .locate{background:#79ff3b;color:#13161d}
+.gps-actions .naver{background:#1ec800;color:#fff}
+.gps-actions .kakao{background:#fae100;color:#2d2000}
+.gps-note{margin-top:12px;color:#aeb4c0;font-size:11px;line-height:1.55;text-align:center}
+.gps-msg{margin-top:12px;background:rgba(255,255,255,.08);border-radius:12px;padding:10px 12px;color:#dce1e8;font-size:12px;line-height:1.5;min-height:42px}
+
+@media(max-width:560px){.side-tools{right:8px;top:auto;bottom:calc(12px + env(safe-area-inset-bottom))}.side-tool{width:45px;height:45px;font-size:21px;background:rgba(58,63,70,.92)}body{padding-left:10px;padding-right:10px}.wrap{max-width:none}}
+@media(max-width:360px){body{padding-left:7px;padding-right:7px}.side-tool{width:42px;height:42px}.calendar-card{padding:12px}.calendar-day{height:49px;padding:3px 2px}.solar-no{font-size:14px}.lunar{font-size:8px}.holiday-name,.event-name{font-size:7.5px}.grid th{font-size:11px}.grid td{font-size:14px;padding:12px 0}.grid td.no{font-size:13px}.ext{font-size:9.5px}.ext b{font-size:10px}}
+@supports (-webkit-touch-callout:none){
+  body{min-height:-webkit-fill-available}
+  .finance-modal,.calendar-modal{min-height:-webkit-fill-available}
+  .plate,.board,.info-bar a,.info-bar button,.switch,.chip,.notice,.extra-card{transform:translateZ(0)}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* 앱 설치 안내 */
+.install-modal{position:fixed;inset:0;z-index:10020;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.62)}
+.install-modal.open{display:flex}
+.install-card{width:min(380px,100%);background:#fff;color:#171a1f;border-radius:21px;padding:18px;box-shadow:0 26px 75px rgba(0,0,0,.4)}
+.install-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.install-title{font-size:19px;font-weight:950}.install-close{border:0;background:#edf0f3;border-radius:50%;width:38px;height:38px;font-size:21px;cursor:pointer}
+.install-body{margin-top:13px;font-size:13px;line-height:1.7;color:#4d5560;font-weight:750}
+.install-body strong{color:#171a1f}.install-steps{margin:10px 0 0 20px}.install-steps li{margin:5px 0}
+.install-action{width:100%;margin-top:14px;border:0;border-radius:13px;padding:13px 12px;background:#177226;color:#fff;font:900 15px/1 inherit;cursor:pointer}
+.install-action[hidden]{display:none}.install-note{margin-top:10px;text-align:center;color:#7b838d;font-size:10.5px;line-height:1.5}
+@media(display-mode:standalone){#installAppBtn{display:none!important}}
+
 </style>
 </head>
 <body>
 <main class="wrap">
-<section class="head"><div class="route"><div><div><strong>1560</strong> <em>여름</em></div><a class="buslink" href="https://m.gbis.go.kr/search" target="_blank" rel="noopener noreferrer">🚌 경기버스</a></div><div class="rev">Rev.16 · APP<br><span id="date"></span></div></div><div class="clock"><span class="today">● 오늘</span><b id="clock">--:--:--</b></div></section>
-<div class="links"><a href="https://www.weather.go.kr/w/index.do" target="_blank" rel="noopener">🌤️ 날씨</a><a href="https://finance.daum.net/" target="_blank" rel="noopener">📈 금융</a><a href="https://www.roadplus.co.kr/main" target="_blank" rel="noopener">🛣️ 교통</a></div>
-<div class="tabs"><button data-day="weekday">평일</button><button data-day="saturday">토요일</button><button data-day="sunday">일요일</button></div>
-<div class="summary"><div>첫차<b id="first"></b></div><div>막차<b id="last"></b></div><div>운행대수<b id="count"></b></div></div>
-<div class="notice"><span>검차</span><span>월요일</span></div>
-<section class="board"><table><thead><tr><th>순번</th><th>1회</th><th>2회</th><th>3회</th><th>4회</th><th>5회</th></tr></thead><tbody id="rows"></tbody></table></section>
-<div class="guide">오늘 시간표에서는 현재 시각 이후 가장 가까운 출발편을 초록색으로 표시합니다.</div>
-<div class="foot">오른쪽 아래 📅 달력 · 🧭 지도/현재 위치</div>
+  <section class="plate">
+    <div class="plate-top">
+      <div class="route-left">
+        <div class="route-no">1560<small>여름</small></div>
+        <a class="gyeonggi-badge" href="https://m.gbis.go.kr/search" target="_blank" rel="noopener noreferrer" aria-label="경기버스정보 열기"><span class="bus">🚌</span><span>경기버스</span></a>
+      </div>
+      <div class="route-meta"><b>Rev.17 · APP</b><br><span id="hdr-date">오늘 날짜</span></div>
+    </div>
+    <div class="clock">
+      <span class="live"><span class="dot"></span><span id="today-label">오늘</span></span>
+      <time id="now">--:--:--</time>
+    </div>
+  </section>
+
+  <div class="info-bar">
+    <a href="https://www.weather.go.kr/w/index.do" target="_blank" rel="noopener noreferrer" aria-label="기상청 날씨누리 열기">🌤️ 날씨</a>
+    <button type="button" id="financeBtn" aria-haspopup="dialog" aria-controls="financeModal">💱 환율·주식</button>
+    <a href="https://www.roadplus.co.kr/main" target="_blank" rel="noopener">🛣️ 도로교통</a>
+  </div>
+
+  <nav class="switch" aria-label="요일 선택">
+    <span class="ind" id="ind"></span>
+    <button class="seg" data-day="weekday" aria-selected="true">평일<span class="cnt">13대</span></button>
+    <button class="seg" data-day="saturday" aria-selected="false">토요일<span class="cnt">9대</span></button>
+    <button class="seg" data-day="sunday" aria-selected="false">일요일<span class="cnt">8대</span></button>
+  </nav>
+
+  <div class="chips">
+    <div class="chip"><span class="k">첫차</span><span class="v acc" id="first">05:00</span></div>
+    <div class="chip"><span class="k">막차</span><span class="v acc" id="last">23:50</span></div>
+    <div class="chip"><span class="k">운행대수</span><span class="v" id="count">13대</span></div>
+  </div>
+
+  <div class="notice"><span>검차</span><b>월요일</b></div>
+
+  <section class="board">
+    <table class="grid" aria-label="1560 시간표">
+      <colgroup><col class="no"><col><col><col><col><col></colgroup>
+      <thead><tr><th>순번</th><th>1회</th><th>2회</th><th>3회</th><th>4회</th><th>5회</th></tr></thead>
+      <tbody id="rows">
+        <tr><td class="no">1</td><td class="edge">5:00</td><td>8:00</td><td class="edge">11:50</td><td>16:10</td><td>20:00</td></tr>
+        <tr><td class="no">2</td><td>5:15</td><td>8:20</td><td>12:15</td><td>16:30</td><td>20:15</td></tr>
+        <tr><td class="no">3</td><td>5:30</td><td>8:40</td><td>12:35</td><td>16:45</td><td>20:30</td></tr>
+        <tr><td class="no">4</td><td>5:45</td><td>9:00</td><td>13:00</td><td>17:00</td><td>20:45</td></tr>
+        <tr><td class="no">5</td><td>6:00</td><td>9:20</td><td>13:25</td><td>17:15</td><td>21:00</td></tr>
+        <tr><td class="no">6</td><td>6:20</td><td>9:40</td><td>13:50</td><td>17:30</td><td>21:15</td></tr>
+        <tr><td class="no">7</td><td>6:25</td><td>10:00</td><td>14:10</td><td>17:45</td><td>21:30</td></tr>
+        <tr><td class="no">8</td><td>6:30</td><td>10:15</td><td>14:30</td><td>18:00</td><td>21:45</td></tr>
+        <tr><td class="no">9</td><td>6:40</td><td>10:30</td><td>14:50</td><td>18:20</td><td>22:00<span class="ext">+강남역 <b>23:10</b></span></td></tr>
+        <tr><td class="no">10</td><td>6:50</td><td>10:45</td><td>15:05</td><td>18:40</td><td>22:15<span class="ext">+강남역 <b>23:30</b></span></td></tr>
+        <tr><td class="no">11</td><td>7:00</td><td>11:00</td><td>15:20</td><td>19:00</td><td class="edge">22:30<span class="ext">+강남역 <b>23:50</b></span></td></tr>
+        <tr><td class="no">12</td><td>7:20</td><td>11:15</td><td>15:35</td><td>19:20</td><td class="blank">&nbsp;</td></tr>
+        <tr><td class="no">13</td><td>7:40</td><td class="edge">11:30</td><td>15:50</td><td>19:40</td><td class="blank">&nbsp;</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <div id="charter">
+    <div class="extra-card">
+      <span class="ico">🚌</span>
+      <div><div class="ttl">전세버스 · 평일 하단 안내</div>
+      <div class="desc">전세버스 <b>6:10</b> · 정차(약출발) · <b>18:00</b> 강남역 출발</div></div>
+    </div>
+  </div>
+
+  <div class="status">
+    스위치를 눌러 요일별 시간표를 확인하세요<br>
+    Rev.17 APP · <span id="status-date">오늘 날짜</span> · 강남역 표기는 연장(추가) 출발편
+  </div>
 </main>
-<div class="tools"><button class="calendar" id="calBtn" aria-label="달력 열기">📅</button><button class="gps" id="gpsBtn" aria-label="지도와 현재 위치 열기">🧭</button></div>
-<div class="modal" id="gpsModal"><div class="card"><div class="cardhead"><div><h2>지도 · 현재 위치</h2><div style="color:#bbb;margin-top:5px">현재 위치 좌표와 지도 바로가기</div></div><button class="close" id="gpsClose">×</button></div><div class="coords"><div class="coord"><b id="lat">--.--</b><span>위도</span></div><div class="coord"><b id="lon">--.--</b><span>경도</span></div></div><div class="actions"><button class="loc" id="locate">📍 현재 위치</button><a class="naver" href="https://m.map.naver.com/" target="_blank" rel="noopener">🗺️ 네이버지도</a><a class="kakao" href="https://m.map.kakao.com/" target="_blank" rel="noopener">🧭 카카오맵</a><a class="naver" id="myMap" href="https://m.map.naver.com/" target="_blank" rel="noopener">🚏 좌표 지도 열기</a></div><div class="msg" id="msg">현재 위치 버튼을 누른 뒤 위치 사용을 허용해 주세요.</div></div></div>
-<div class="modal" id="calModal"><div class="card"><div class="cardhead"><div><h2>음력 달력</h2><div style="color:#bbb;margin-top:5px">날짜와 음력을 함께 표시합니다.</div></div><button class="close" id="calClose">×</button></div><div class="calnav"><button id="prevMonth">‹ 이전</button><div class="month" id="monthTitle"></div><button id="nextMonth">다음 ›</button></div><div class="week"><span class="sun">일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span class="sat">토</span></div><div class="calgrid" id="calGrid"></div><div class="calselected" id="calSelected">날짜를 누르면 양력과 음력을 확인할 수 있습니다.</div></div></div>
+
+  <aside class="side-tools" aria-label="오른쪽 빠른 기능">
+    <button class="side-tool" id="installAppBtn" type="button" aria-label="앱 설치 안내" title="앱 설치">⬇️</button>
+    <button class="side-tool" id="quickCalendar" type="button" aria-label="음력과 공휴일 달력 열기" title="음력·공휴일 달력">📅</button>
+    <button class="side-tool" id="gpsQuick" type="button" aria-label="지도와 속도계 기능 열기" title="지도·속도계">🧭</button>
+  </aside>
+  <div class="calendar-modal" id="calendarModal" role="dialog" aria-modal="true" aria-labelledby="calendarTitle">
+    <div class="calendar-card">
+      <div class="calendar-head">
+        <div class="calendar-heading"><div class="calendar-title" id="calendarTitle">대한민국 음력·공휴일 달력</div><div class="calendar-sub">음력 · 공휴일 · 대체공휴일 · 주요 전통일 표시</div></div>
+        <button class="calendar-close" id="calendarClose" type="button" aria-label="달력 닫기">×</button>
+      </div>
+      <div class="calendar-head" style="margin-top:10px">
+        <div class="calendar-nav"><button type="button" id="calPrev" aria-label="이전 달">‹</button><button type="button" id="calNext" aria-label="다음 달">›</button></div>
+        <div class="calendar-title" id="calMonth">----</div><button class="calendar-today" id="calToday" type="button">오늘</button>
+      </div>
+      <div class="calendar-week" aria-hidden="true"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div>
+      <div class="calendar-grid" id="calendarGrid" aria-label="음력과 공휴일이 표시되는 월간 달력"></div>
+      <div class="calendar-legend" aria-hidden="true"><span class="legend-item"><span class="legend-dot"></span>공휴일</span><span class="legend-item"><span class="legend-lunar">6.3</span>음력</span></div>
+      <div class="calendar-foot"><div class="calendar-selected" id="calendarSelected">날짜를 누르면 음력과 공휴일을 확인할 수 있습니다.</div><button class="calendar-today" id="calendarDone" type="button">확인</button></div>
+      <div class="calendar-note">대한민국 현행 공휴일 규칙을 기준으로 대체공휴일을 계산합니다.</div>
+    </div>
+  </div>
+
+
+  <div class="install-modal" id="installModal" role="dialog" aria-modal="true" aria-labelledby="installTitle">
+    <div class="install-card">
+      <div class="install-head"><div class="install-title" id="installTitle">1560 시간표 앱 설치</div><button class="install-close" id="installClose" type="button" aria-label="닫기">×</button></div>
+      <div class="install-body" id="installBody"></div>
+      <button class="install-action" id="installAction" type="button" hidden>지금 앱 설치</button>
+      <div class="install-note">설치 후에는 주소창 없이 앱처럼 열리고, 시간표 화면은 오프라인에서도 확인할 수 있습니다.</div>
+    </div>
+  </div>
+
+
+<div class="gps-modal" id="gpsModal" role="dialog" aria-modal="true" aria-labelledby="gpsTitle">
+  <div class="gps-card">
+    <div class="gps-head">
+      <div>
+        <div class="gps-title" id="gpsTitle">지도 · 속도계</div>
+        <div class="gps-sub">위 화면처럼 쓸 수 있는 빠른 아이콘입니다. 현재 위치 좌표를 확인하거나 지도를 바로 열 수 있어요.</div>
+      </div>
+      <button class="gps-close" id="gpsClose" type="button" aria-label="닫기">×</button>
+    </div>
+    <div class="gps-grid">
+      <div class="gps-box"><div class="num" id="gpsLat">--.--</div><span class="lab">위도</span></div>
+      <div class="gps-box"><div class="num" id="gpsLon">--.--</div><span class="lab">경도</span></div>
+    </div>
+    <div class="gps-actions">
+      <button class="locate" id="gpsLocate" type="button">📍 현재 위치 좌표</button>
+      <a class="naver" href="https://m.map.naver.com/" target="_blank" rel="noopener noreferrer">🗺️ 네이버지도</a>
+      <a class="kakao" href="https://m.map.kakao.com/" target="_blank" rel="noopener noreferrer">🧭 카카오맵</a>
+      <a class="naver" href="https://map.kakao.com/link/to/현재위치,37.5665,126.9780" target="_blank" rel="noopener noreferrer">🚏 길찾기 예시</a>
+    </div>
+    <div class="gps-msg" id="gpsMsg">버튼을 누르면 기기 위치 권한을 받아 현재 좌표를 표시합니다.</div>
+    <div class="gps-note">※ 휴대폰 브라우저 위치 권한이 꺼져 있으면 좌표를 불러오지 못할 수 있습니다.</div>
+  </div>
+</div>
+
+<div class="finance-modal" id="financeModal" role="dialog" aria-modal="true" aria-labelledby="financeTitle">
+    <div class="finance-card">
+      <div class="finance-head">
+        <div class="finance-title" id="financeTitle">환율·주식 정보</div>
+        <button class="finance-close" id="financeClose" type="button" aria-label="닫기">×</button>
+      </div>
+      <div class="finance-links">
+        <a class="fx" href="https://finance.daum.net/exchanges" target="_blank" rel="noopener noreferrer">
+          <span class="ico">💱</span><span>환율 정보</span>
+        </a>
+        <a class="stock" href="https://finance.daum.net/" target="_blank" rel="noopener noreferrer">
+          <span class="ico">📈</span><span>주식 정보</span>
+        </a>
+      </div>
+      <div class="finance-note">개인정보 화면 대신 공개 금융정보 페이지로 연결됩니다.</div>
+    </div>
+  </div>
+
 <script>
-const D={weekday:{n:13,c:'#177226',r:[['5:00','8:00','11:50','16:10','20:00'],['5:15','8:20','12:15','16:30','20:15'],['5:30','8:40','12:35','16:45','20:30'],['5:45','9:00','13:00','17:00','20:45'],['6:00','9:20','13:25','17:15','21:00'],['6:20','9:40','13:50','17:30','21:15'],['6:25','10:00','14:10','17:45','21:30'],['6:30','10:15','14:30','18:00','21:45'],['6:40','10:30','14:50','18:20','22:00|23:10'],['6:50','10:45','15:05','18:40','22:15|23:30'],['7:00','11:00','15:20','19:00','22:30|23:50'],['7:20','11:15','15:35','19:20',''],['7:40','11:30','15:50','19:40','']]},saturday:{n:9,c:'#1e63d6',r:[['5:00','8:00','11:50','15:55','19:40'],['5:20','8:25','12:20','16:20','20:05'],['5:40','8:50','12:50','16:45','20:30'],['6:00','9:15','13:20','17:10','20:55'],['6:20','9:40','13:50','17:35','21:20'],['6:40','10:05','14:15','18:00','21:45|22:55'],['7:00','10:30','14:40','18:25','22:10|23:20'],['7:20','10:55','15:05','18:50','22:30|23:50'],['7:40','11:20','15:30','19:15','']]},sunday:{n:8,c:'#e23b2e',r:[['5:00','8:10','12:00','15:55','19:40'],['5:25','8:40','12:30','16:20','20:10'],['5:50','9:10','13:00','16:45','20:40'],['6:15','9:40','13:30','17:10','21:10'],['6:40','10:10','14:00','17:40','21:40|22:55'],['7:05','10:40','14:30','18:10','22:05|23:20'],['7:30','11:05','15:00','18:40','22:30|23:50'],['7:50','11:30','15:30','19:10','']]}};
-const el=id=>document.getElementById(id),rows=el('rows'),first=el('first'),last=el('last'),count=el('count'),clock=el('clock'),dateEl=el('date');
-const todayKey=()=>{const d=new Date().getDay();return d===0?'sunday':d===6?'saturday':'weekday'};let day=todayKey();
-function mins(s){const [h,m]=s.split(':').map(Number);return h*60+m}function fmt(m){return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')}
-function render(){const x=D[day],all=[];document.documentElement.style.setProperty('--green',x.c);document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('active',b.dataset.day===day));x.r.forEach(a=>a.forEach(v=>{if(v){const [t,e]=v.split('|');all.push(mins(t));if(e)all.push(mins(e))}}));const now=new Date(),cur=now.getHours()*60+now.getMinutes(),next=day===todayKey()?Math.min(...all.filter(v=>v>=cur)):Infinity;rows.innerHTML='';x.r.forEach((a,i)=>{const tr=document.createElement('tr');tr.innerHTML='<td class="no">'+(i+1)+'</td>';a.forEach((v,j)=>{const td=document.createElement('td');if(v){const [t,e]=v.split('|');td.textContent=t;if(mins(t)===next)td.classList.add('next');if(e){td.innerHTML=t+'<span class="ext">+강남역 <b>'+e+'</b></span>';if(mins(e)===next)td.classList.add('next')}}if((i===0&&(j===0||j===2))||(j===4&&i===x.r.length-2))td.classList.add('edge');tr.appendChild(td)});rows.appendChild(tr)});first.textContent=fmt(Math.min(...all));last.textContent=fmt(Math.max(...all));count.textContent=x.n+'대'}
-document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{day=b.dataset.day;render()});function tick(){const d=new Date(),p=n=>String(n).padStart(2,'0');clock.textContent=p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());dateEl.textContent=d.getFullYear()+'.'+p(d.getMonth()+1)+'.'+p(d.getDate())}setInterval(tick,1000);setInterval(render,60000);tick();render();
-const gpsModal=el('gpsModal');el('gpsBtn').onclick=()=>gpsModal.classList.add('open');el('gpsClose').onclick=()=>gpsModal.classList.remove('open');gpsModal.onclick=e=>{if(e.target===gpsModal)gpsModal.classList.remove('open')};el('locate').onclick=()=>{const msg=el('msg');if(!navigator.geolocation){msg.textContent='이 브라우저는 위치 기능을 지원하지 않습니다.';return}msg.textContent='현재 위치를 확인하는 중입니다...';navigator.geolocation.getCurrentPosition(p=>{const a=p.coords.latitude,o=p.coords.longitude;el('lat').textContent=a.toFixed(3);el('lon').textContent=o.toFixed(3);el('myMap').href='https://map.naver.com/p/search/'+a+','+o;msg.textContent='위치를 불러왔습니다. 정확도 약 '+Math.round(p.coords.accuracy)+'m';},e=>{msg.textContent=e.code===1?'위치 권한이 거부되었습니다. Chrome의 위치 권한을 허용해 주세요.':'위치를 불러오지 못했습니다.'},{enableHighAccuracy:true,timeout:10000})};
-const calModal=el('calModal'),calGrid=el('calGrid'),monthTitle=el('monthTitle'),calSelected=el('calSelected');let calView=new Date();let lunarFmt=null;try{lunarFmt=new Intl.DateTimeFormat('ko-KR-u-ca-chinese',{month:'numeric',day:'numeric'})}catch(e){}function lunar(d){if(!lunarFmt)return '음력 미지원';try{return lunarFmt.format(d).replace(/\s/g,'')}catch(e){return '음력 미지원'}}function same(a,b){return a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate()}function drawCal(){const y=calView.getFullYear(),m=calView.getMonth(),firstDay=new Date(y,m,1),start=new Date(y,m,1-firstDay.getDay()),today=new Date();monthTitle.textContent=y+'년 '+(m+1)+'월';calGrid.innerHTML='';for(let i=0;i<42;i++){const d=new Date(start);d.setDate(start.getDate()+i);const b=document.createElement('button');b.className='calday';if(d.getMonth()!==m)b.classList.add('muted');if(same(d,today))b.classList.add('today');if(d.getDay()===0)b.classList.add('sun');if(d.getDay()===6)b.classList.add('sat');b.innerHTML='<span class="solar">'+d.getDate()+'</span><span class="lunar">'+lunar(d)+'</span>';b.onclick=()=>{calSelected.textContent=d.getFullYear()+'년 '+(d.getMonth()+1)+'월 '+d.getDate()+'일 · 음력 '+lunar(d)};calGrid.appendChild(b)}}el('calBtn').onclick=()=>{calView=new Date();drawCal();calModal.classList.add('open')};el('calClose').onclick=()=>calModal.classList.remove('open');calModal.onclick=e=>{if(e.target===calModal)calModal.classList.remove('open')};el('prevMonth').onclick=()=>{calView=new Date(calView.getFullYear(),calView.getMonth()-1,1);drawCal()};el('nextMonth').onclick=()=>{calView=new Date(calView.getFullYear(),calView.getMonth()+1,1);drawCal()};
+(function(){
+  const isiPhone=/iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+  if(isiPhone)document.documentElement.classList.add("ios");
+  document.addEventListener("touchstart",function(){},{passive:true});
+})();
+
+
+/* PWA 앱 설치 안내 */
+let deferredInstallPrompt=null;
+const installAppBtn=document.getElementById("installAppBtn");
+const installModal=document.getElementById("installModal");
+const installClose=document.getElementById("installClose");
+const installBody=document.getElementById("installBody");
+const installAction=document.getElementById("installAction");
+const isStandalone=window.matchMedia("(display-mode: standalone)").matches||window.navigator.standalone===true;
+const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+function installInstructions(){
+ if(isStandalone){installBody.innerHTML="<strong>이미 앱으로 설치되어 있습니다.</strong><br>홈 화면의 1560 아이콘으로 실행하세요.";installAction.hidden=true;return}
+ if(isIOS){installBody.innerHTML="<strong>아이폰 설치 방법</strong><ol class='install-steps'><li>Safari 아래쪽의 <b>공유 버튼(□↑)</b>을 누릅니다.</li><li><b>홈 화면에 추가</b>를 누릅니다.</li><li>오른쪽 위의 <b>추가</b>를 누릅니다.</li></ol>";installAction.hidden=true;return}
+ if(deferredInstallPrompt){installBody.innerHTML="<strong>갤럭시·안드로이드</strong><br>아래 버튼을 누르면 홈 화면에 1560 시간표 앱이 설치됩니다.";installAction.hidden=false;return}
+ installBody.innerHTML="<strong>갤럭시·안드로이드 설치 방법</strong><ol class='install-steps'><li>Chrome 오른쪽 위의 <b>⋮ 메뉴</b>를 누릅니다.</li><li><b>앱 설치</b> 또는 <b>홈 화면에 추가</b>를 누릅니다.</li><li><b>설치</b>를 누릅니다.</li></ol>";installAction.hidden=true;
+}
+function openInstall(){installInstructions();installModal.classList.add("open");installClose.focus()}
+function closeInstall(){installModal.classList.remove("open");installAppBtn.focus()}
+window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstallPrompt=e;installInstructions()});
+window.addEventListener("appinstalled",()=>{deferredInstallPrompt=null;installAppBtn.style.display="none";closeInstall()});
+installAppBtn.addEventListener("click",openInstall);installClose.addEventListener("click",closeInstall);
+installModal.addEventListener("click",e=>{if(e.target===installModal)closeInstall()});
+installAction.addEventListener("click",async()=>{if(!deferredInstallPrompt)return;deferredInstallPrompt.prompt();await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;installAction.hidden=true;closeInstall()});
+if(isStandalone)installAppBtn.style.display="none";
+if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}))}
+
+
+/* 오른쪽 음력·공휴일 달력 기능 */
+const quickCalendar=document.getElementById("quickCalendar");
+const calendarModal=document.getElementById("calendarModal");
+const calendarClose=document.getElementById("calendarClose");
+const calendarDone=document.getElementById("calendarDone");
+const calendarGrid=document.getElementById("calendarGrid");
+const calMonth=document.getElementById("calMonth");
+const calendarSelected=document.getElementById("calendarSelected");
+const calPrev=document.getElementById("calPrev");
+const calNext=document.getElementById("calNext");
+const calToday=document.getElementById("calToday");
+let calView=new Date(),calPicked=null;
+const sameDate=(a,b)=>a&&b&&a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();
+const dateKey=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+const dateLabel=d=>`${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일 ${["일","월","화","수","목","금","토"][d.getDay()]}요일`;
+const lunarCache=new Map(),holidayCache=new Map();
+let lunarFormatter=null;
+try{lunarFormatter=new Intl.DateTimeFormat("ko-KR-u-ca-chinese",{month:"numeric",day:"numeric"})}
+catch(e){try{lunarFormatter=new Intl.DateTimeFormat("ko-KR",{calendar:"chinese",month:"numeric",day:"numeric"})}catch(e2){}}
+function lunarInfo(d){
+ const key=dateKey(d);if(lunarCache.has(key))return lunarCache.get(key);
+ let result={month:null,day:null,isLeap:false,label:"음력 미지원"};
+ try{
+  if(!lunarFormatter)throw new Error("unsupported");
+  const parts=typeof lunarFormatter.formatToParts==="function"?lunarFormatter.formatToParts(d):[];
+  let rawMonth=(parts.find(p=>p.type==="month")||{}).value||"";
+  let rawDay=(parts.find(p=>p.type==="day")||{}).value||"";
+  if(!rawMonth||!rawDay){const nums=lunarFormatter.format(d).match(/\d+/g)||[];rawMonth=nums[0]||"";rawDay=nums[1]||""}
+  const monthMatch=String(rawMonth).match(/\d+/),dayMatch=String(rawDay).match(/\d+/);
+  if(monthMatch&&dayMatch){const month=Number(monthMatch[0]),day=Number(dayMatch[0]),isLeap=/윤|闰|閏|leap|bis/i.test(String(rawMonth));result={month,day,isLeap,label:`${isLeap?"윤":""}${month}.${day}`}}
+ }catch(e){}
+ lunarCache.set(key,result);return result
+}
+function addCalendarInfo(map,key,name,type){const current=map.get(key)||{holidays:[],events:[]},bucket=type==="holiday"?current.holidays:current.events;if(!bucket.includes(name))bucket.push(name);map.set(key,current)}
+function buildHolidayMap(year){
+ if(holidayCache.has(year))return holidayCache.get(year);
+ const map=new Map(),base=[],pushBase=(date,name,eligible=false,group=null,trigger="none")=>base.push({date:new Date(date.getFullYear(),date.getMonth(),date.getDate()),name,eligible,group,trigger});
+ const fixed=[[1,1,"신정",false],[3,1,"삼일절",true],[5,5,"어린이날",true],[6,6,"현충일",false],[8,15,"광복절",true],[10,3,"개천절",true],[10,9,"한글날",true],[12,25,"성탄절",true]];
+ if(year>=2026)fixed.push([5,1,"노동절",true],[7,17,"제헌절",true]);
+ fixed.forEach(([m,d,name,eligible])=>pushBase(new Date(year,m-1,d),name,eligible,null,eligible?"satSun":"none"));
+ for(let d=new Date(year,0,1);d<new Date(year+1,0,1);d.setDate(d.getDate()+1)){
+  const cur=new Date(d),l=lunarInfo(cur);if(!l.month||l.isLeap)continue;const next=new Date(cur);next.setDate(next.getDate()+1);const nl=lunarInfo(next);
+  if(l.month===12&&nl.month===1&&nl.day===1)pushBase(cur,"설날 연휴",true,"seollal","sunOnly");
+  if(l.month===1&&l.day===1)pushBase(cur,"설날",true,"seollal","sunOnly");
+  if(l.month===1&&l.day===2)pushBase(cur,"설날 연휴",true,"seollal","sunOnly");
+  if(l.month===4&&l.day===8)pushBase(cur,"부처님오신날",true,null,"satSun");
+  if(l.month===8&&l.day===14)pushBase(cur,"추석 연휴",true,"chuseok","sunOnly");
+  if(l.month===8&&l.day===15)pushBase(cur,"추석",true,"chuseok","sunOnly");
+  if(l.month===8&&l.day===16)pushBase(cur,"추석 연휴",true,"chuseok","sunOnly");
+  if(l.month===1&&l.day===15)addCalendarInfo(map,dateKey(cur),"정월대보름","event");
+  if(l.month===5&&l.day===5)addCalendarInfo(map,dateKey(cur),"단오","event");
+  if(l.month===6&&l.day===15)addCalendarInfo(map,dateKey(cur),"유두","event");
+  if(l.month===7&&l.day===7)addCalendarInfo(map,dateKey(cur),"칠석","event");
+ }
+ const specialHolidays={"2026-06-03":"지방선거"},specialEvents={"2026-04-06":"한식","2026-07-15":"초복","2026-07-25":"중복","2026-08-14":"말복"};
+ Object.entries(specialHolidays).forEach(([key,name])=>{if(key.startsWith(`${year}-`)){const [y,m,d]=key.split("-").map(Number);pushBase(new Date(y,m-1,d),name,false)}});
+ Object.entries(specialEvents).forEach(([key,name])=>{if(key.startsWith(`${year}-`))addCalendarInfo(map,key,name,"event")});
+ const countByDate=new Map();base.forEach(entry=>countByDate.set(dateKey(entry.date),(countByDate.get(dateKey(entry.date))||0)+1));base.forEach(entry=>addCalendarInfo(map,dateKey(entry.date),entry.name,"holiday"));
+ function addSubstitute(afterDate){const d=new Date(afterDate);d.setDate(d.getDate()+1);while(d.getDay()===0||d.getDay()===6||map.has(dateKey(d)))d.setDate(d.getDate()+1);addCalendarInfo(map,dateKey(d),"대체공휴일","holiday")}
+ base.filter(x=>x.eligible&&!x.group).forEach(entry=>{const weekend=entry.trigger==="satSun"&&(entry.date.getDay()===0||entry.date.getDay()===6),overlap=(countByDate.get(dateKey(entry.date))||0)>1;if(weekend||overlap)addSubstitute(entry.date)});
+ ["seollal","chuseok"].forEach(group=>{const members=base.filter(x=>x.group===group);if(!members.length)return;const trigger=members.some(x=>x.date.getDay()===0||(countByDate.get(dateKey(x.date))||0)>1);if(trigger){const sorted=members.map(x=>x.date).sort((a,b)=>a-b),last=sorted[sorted.length-1];addSubstitute(last)}});
+ holidayCache.set(year,map);return map;
+}
+function calendarInfo(d){return buildHolidayMap(d.getFullYear()).get(dateKey(d))||{holidays:[],events:[]}}
+function selectedText(d){const lunar=lunarInfo(d),info=calendarInfo(d),details=[`음력 ${lunar.label}`];if(info.holidays.length)details.push(info.holidays.join(" · "));if(info.events.length)details.push(info.events.join(" · "));calendarSelected.innerHTML=`<strong>${dateLabel(d)}</strong><br>${details.join(" · ")}`}
+function drawCalendar(){
+ const y=calView.getFullYear(),m=calView.getMonth();calMonth.textContent=`${y}년 ${m+1}월`;calendarGrid.innerHTML="";
+ const first=new Date(y,m,1),daysInMonth=new Date(y,m+1,0).getDate(),cellCount=Math.ceil((first.getDay()+daysInMonth)/7)*7,start=new Date(y,m,1-first.getDay()),today=new Date();
+ for(let i=0;i<cellCount;i++){const d=new Date(start);d.setDate(start.getDate()+i);const lunar=lunarInfo(d),info=calendarInfo(d),b=document.createElement("button");b.type="button";b.className="calendar-day";if(d.getMonth()!==m)b.classList.add("muted");if(d.getDay()===0)b.classList.add("sun");if(d.getDay()===6)b.classList.add("sat");if(info.holidays.length)b.classList.add("holiday");if(info.events.length)b.classList.add("event");if(sameDate(d,today))b.classList.add("today");if(sameDate(d,calPicked))b.classList.add("selected");const name=info.holidays.length?`<span class="holiday-name">${info.holidays.join("·")}</span>`:info.events.length?`<span class="event-name">${info.events.join("·")}</span>`:"";b.innerHTML=`<span class="solar-row"><span class="solar-no">${d.getDate()}</span></span><span class="lunar">${lunar.label}</span>${name}`;const aria=[dateLabel(d),`음력 ${lunar.label}`];if(info.holidays.length)aria.push(info.holidays.join(", "));if(info.events.length)aria.push(info.events.join(", "));b.setAttribute("aria-label",aria.join(", "));b.addEventListener("click",()=>{calPicked=new Date(d);calView=new Date(d.getFullYear(),d.getMonth(),1);selectedText(d);drawCalendar()});calendarGrid.appendChild(b)}
+}
+function openCalendar(){if(!calPicked)calPicked=new Date();calView=new Date(calPicked.getFullYear(),calPicked.getMonth(),1);selectedText(calPicked);drawCalendar();calendarModal.classList.add("open");quickCalendar.classList.add("active");calendarClose.focus()}
+function closeCalendar(){calendarModal.classList.remove("open");quickCalendar.classList.remove("active");quickCalendar.focus()}
+quickCalendar.addEventListener("click",openCalendar);calendarClose.addEventListener("click",closeCalendar);calendarDone.addEventListener("click",closeCalendar);calendarModal.addEventListener("click",e=>{if(e.target===calendarModal)closeCalendar()});calPrev.addEventListener("click",()=>{calView=new Date(calView.getFullYear(),calView.getMonth()-1,1);drawCalendar()});calNext.addEventListener("click",()=>{calView=new Date(calView.getFullYear(),calView.getMonth()+1,1);drawCalendar()});calToday.addEventListener("click",()=>{const d=new Date();calView=new Date(d.getFullYear(),d.getMonth(),1);calPicked=d;selectedText(d);drawCalendar()});
+
+const financeBtn=document.getElementById("financeBtn");
+const financeModal=document.getElementById("financeModal");
+const financeClose=document.getElementById("financeClose");
+function openFinance(){financeModal.classList.add("open");financeClose.focus()}
+function closeFinance(){financeModal.classList.remove("open");financeBtn.focus()}
+financeBtn.addEventListener("click",openFinance);
+financeClose.addEventListener("click",closeFinance);
+financeModal.addEventListener("click",e=>{if(e.target===financeModal)closeFinance()});
+document.addEventListener("keydown",e=>{
+ if(e.key!=="Escape")return;
+ if(installModal.classList.contains("open"))closeInstall();
+ else if(calendarModal.classList.contains("open"))closeCalendar();
+ else if(gpsModal.classList.contains("open"))closeGps();
+ else if(financeModal.classList.contains("open"))closeFinance();
+});
+
+
+const gpsQuick=document.getElementById("gpsQuick");
+const gpsModal=document.getElementById("gpsModal");
+const gpsClose=document.getElementById("gpsClose");
+const gpsLocate=document.getElementById("gpsLocate");
+const gpsLat=document.getElementById("gpsLat");
+const gpsLon=document.getElementById("gpsLon");
+const gpsMsg=document.getElementById("gpsMsg");
+function openGps(){gpsModal.classList.add("open");gpsQuick.classList.add("active");gpsClose.focus()}
+function closeGps(){gpsModal.classList.remove("open");gpsQuick.classList.remove("active");gpsQuick.focus()}
+function setGpsMessage(msg){gpsMsg.textContent=msg}
+function updateCoords(lat,lon){gpsLat.textContent=Number(lat).toFixed(3);gpsLon.textContent=Number(lon).toFixed(3)}
+function locateMe(){
+ if(!navigator.geolocation){setGpsMessage("이 기기에서는 위치 기능을 지원하지 않습니다.");return}
+ setGpsMessage("현재 위치를 확인하는 중입니다...");
+ navigator.geolocation.getCurrentPosition(
+  pos=>{
+   const {latitude,longitude,accuracy}=pos.coords;
+   updateCoords(latitude,longitude);
+   setGpsMessage(`현재 좌표를 불러왔습니다. 정확도 약 ${Math.round(accuracy)}m`);
+  },
+  err=>{
+   const map={1:"위치 권한이 거부되었습니다.",2:"현재 위치를 찾을 수 없습니다.",3:"위치 확인 시간이 초과되었습니다."};
+   setGpsMessage(map[err.code]||"위치 정보를 가져오지 못했습니다.")
+  },
+  {enableHighAccuracy:true,timeout:10000,maximumAge:60000}
+ )
+}
+gpsQuick.addEventListener("click",openGps);
+gpsClose.addEventListener("click",closeGps);
+gpsLocate.addEventListener("click",locateMe);
+gpsModal.addEventListener("click",e=>{if(e.target===gpsModal)closeGps()});
+
+const DATA={
+ weekday:{label:"평일",count:13,accent:"#177226",rows:[
+  {no:1,t:["5:00","8:00","11:50","16:10","20:00"]},
+  {no:2,t:["5:15","8:20","12:15","16:30","20:15"]},
+  {no:3,t:["5:30","8:40","12:35","16:45","20:30"]},
+  {no:4,t:["5:45","9:00","13:00","17:00","20:45"]},
+  {no:5,t:["6:00","9:20","13:25","17:15","21:00"]},
+  {no:6,t:["6:20","9:40","13:50","17:30","21:15"]},
+  {no:7,t:["6:25","10:00","14:10","17:45","21:30"]},
+  {no:8,t:["6:30","10:15","14:30","18:00","21:45"]},
+  {no:9,t:["6:40","10:30","14:50","18:20","22:00"],ext:"23:10"},
+  {no:10,t:["6:50","10:45","15:05","18:40","22:15"],ext:"23:30"},
+  {no:11,t:["7:00","11:00","15:20","19:00","22:30"],ext:"23:50"},
+  {no:12,t:["7:20","11:15","15:35","19:20",""]},
+  {no:13,t:["7:40","11:30","15:50","19:40",""]}
+ ],charter:true},
+ saturday:{label:"토요일",count:9,accent:"#1e63d6",rows:[
+  {no:1,t:["5:00","8:00","11:50","15:55","19:40"]},
+  {no:2,t:["5:20","8:25","12:20","16:20","20:05"]},
+  {no:3,t:["5:40","8:50","12:50","16:45","20:30"]},
+  {no:4,t:["6:00","9:15","13:20","17:10","20:55"]},
+  {no:5,t:["6:20","9:40","13:50","17:35","21:20"]},
+  {no:6,t:["6:40","10:05","14:15","18:00","21:45"],ext:"22:55"},
+  {no:7,t:["7:00","10:30","14:40","18:25","22:10"],ext:"23:20"},
+  {no:8,t:["7:20","10:55","15:05","18:50","22:30"],ext:"23:50"},
+  {no:9,t:["7:40","11:20","15:30","19:15",""]}
+ ]},
+ sunday:{label:"일요일",count:8,accent:"#e23b2e",rows:[
+  {no:1,t:["5:00","8:10","12:00","15:55","19:40"]},
+  {no:2,t:["5:25","8:40","12:30","16:20","20:10"]},
+  {no:3,t:["5:50","9:10","13:00","16:45","20:40"]},
+  {no:4,t:["6:15","9:40","13:30","17:10","21:10"]},
+  {no:5,t:["6:40","10:10","14:00","17:40","21:40"],ext:"22:55"},
+  {no:6,t:["7:05","10:40","14:30","18:10","22:05"],ext:"23:20"},
+  {no:7,t:["7:30","11:05","15:00","18:40","22:30"],ext:"23:50"},
+  {no:8,t:["7:50","11:30","15:30","19:10",""]}
+ ]}
+};
+const ORDER=["weekday","saturday","sunday"];
+const rowsEl=document.getElementById("rows"),ind=document.getElementById("ind");
+const firstEl=document.getElementById("first"),lastEl=document.getElementById("last"),countEl=document.getElementById("count");
+const charter=document.getElementById("charter");
+const toMin=s=>{const [h,m]=s.split(":").map(Number);return h*60+m};
+const todayKey=()=>{const d=new Date().getDay();return d===0?"sunday":d===6?"saturday":"weekday"};
+let state={day:todayKey()};
+
+function allTimes(d){
+ const a=[];DATA[d].rows.forEach(r=>{r.t.forEach(x=>x&&a.push(x));if(r.ext)a.push(r.ext)});return a
+}
+function fmt(m){return String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0")}
+function edgeSet(d){
+ const rows=DATA[d].rows,s=new Set();
+ s.add("0-0"); s.add("0-2");
+ for(let i=rows.length-1;i>=0;i--){if(rows[i].t[1]){s.add(i+"-1");break}}
+ for(let i=rows.length-1;i>=0;i--){if(rows[i].t[4]){s.add(i+"-4");break}}
+ return s
+}
+function render(){
+ const d=DATA[state.day],accent=d.accent;
+ document.body.dataset.day=state.day;
+ document.documentElement.style.setProperty("--accent",accent);
+ const rgb=accent.match(/\w\w/g).map(x=>parseInt(x,16));
+ document.documentElement.style.setProperty("--accent-soft",`rgba(${rgb[0]},${rgb[1]},${rgb[2]},.10)`);
+ ind.style.transform=`translateX(${ORDER.indexOf(state.day)*100}%)`;
+ document.querySelectorAll(".seg").forEach(b=>b.setAttribute("aria-selected",b.dataset.day===state.day));
+ const times=allTimes(state.day).map(toMin);
+ firstEl.textContent=fmt(Math.min(...times));lastEl.textContent=fmt(Math.max(...times));countEl.textContent=d.count+"대";
+ const edges=edgeSet(state.day),now=new Date(),cur=now.getHours()*60+now.getMinutes();
+ const next=state.day===todayKey()?Math.min(...times.filter(x=>x>=cur)):null;
+ rowsEl.innerHTML="";
+ d.rows.forEach((r,ri)=>{
+  const tr=document.createElement("tr");
+  tr.innerHTML=`<td class="no">${r.no}</td>`;
+  r.t.forEach((x,ci)=>{
+   const td=document.createElement("td");
+   if(!x){td.className="blank";td.innerHTML="&nbsp;"}
+   else{
+    if(edges.has(`${ri}-${ci}`))td.classList.add("edge");
+    if(next!==Infinity&&toMin(x)===next){td.classList.add("next");td.innerHTML=`<span class="time">${x}</span>`}
+    else td.textContent=x;
+   }
+   if(ci===4&&r.ext){
+    const e=document.createElement("span");e.className="ext";e.innerHTML=`+강남역 <b>${r.ext}</b>`;td.appendChild(e)
+   }
+   tr.appendChild(td)
+  });
+  rowsEl.appendChild(tr)
+ });
+ charter.innerHTML=d.charter?`<div class="extra-card"><span class="ico">🚌</span><div><div class="ttl">전세버스 · 평일 하단 안내</div><div class="desc">전세버스 <b>6:10</b> · 정차(약출발) · <b>18:00</b> 강남역 출발</div></div></div>`:"";
+}
+document.querySelectorAll(".seg").forEach(b=>b.addEventListener("click",()=>{state.day=b.dataset.day;render()}));
+function tick(){
+ const n=new Date(),p=x=>String(x).padStart(2,"0");
+ document.getElementById("now").textContent=`${p(n.getHours())}:${p(n.getMinutes())}:${p(n.getSeconds())}`;
+ const date=`${n.getFullYear()}.${p(n.getMonth()+1)}.${p(n.getDate())}`;
+ document.getElementById("hdr-date").textContent=date;document.getElementById("status-date").textContent=date;
+ document.getElementById("today-label").textContent=`오늘 · ${["일","월","화","수","목","금","토"][n.getDay()]}요일`;
+}
+tick();setInterval(tick,1000);render();setInterval(render,60000);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden){tick();render()}});
+window.addEventListener("pageshow",()=>{tick();render()});
 </script>
-</body></html>
+</body>
+</html>
