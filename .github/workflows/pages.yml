@@ -19,38 +19,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Prepare Rev18 site
+      - name: Prepare Rev19 site
         shell: bash
         run: |
           mkdir -p _site
           rsync -a --exclude '.git' --exclude '_site' ./ _site/
-          python3 - <<'PY'
-          from pathlib import Path
-
-          index = Path('_site/index.html')
-          text = index.read_text(encoding='utf-8')
-          replacements = {
-              'Rev.17': 'Rev.18',
-              '일요일<span class="cnt">8대</span>': '일요일(공휴일)<span class="cnt">8대</span>',
-              'sunday:{label:"일요일",count:8': 'sunday:{label:"일요일(공휴일)",count:8',
-              '대한민국 음력·공휴일 달력': '대한민국 달력',
-              '음력 · 공휴일 · 대체공휴일 · 주요 전통일 표시': '음력 · 공휴일 · 주요 전통일 표시',
-          }
-          for old, new in replacements.items():
-              text = text.replace(old, new)
-          text = text.replace(
-              '.seg[aria-selected="true"],.seg[aria-selected="true"] .cnt{color:#fff}',
-              '.seg[aria-selected="true"],.seg[aria-selected="true"] .cnt{color:#fff}.seg[data-day="sunday"]{font-size:12px;letter-spacing:-.5px}'
-          )
-          index.write_text(text, encoding='utf-8')
-
-          sw = Path('_site/sw.js')
-          if sw.exists():
-              sw_text = sw.read_text(encoding='utf-8')
-              import re
-              sw_text = re.sub(r'const CACHE_NAME="[^"]+";', 'const CACHE_NAME="1560-timetable-rev18-v1";', sw_text)
-              sw.write_text(sw_text, encoding='utf-8')
-          PY
+          python3 tools/build_rev19.py _site
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
