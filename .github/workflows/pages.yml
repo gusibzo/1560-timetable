@@ -19,12 +19,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Prepare Rev26 site
+      - name: Prepare Rev27 site
         shell: bash
         run: |
           mkdir -p _site
           rsync -a --exclude '.git' --exclude '_site' ./ _site/
-          python3 tools/build_rev26.py _site
+          python3 tools/build_rev27.py _site
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
