@@ -167,6 +167,17 @@ rowsEl.addEventListener("click",event=>{
 });
 const rev23Observer=new MutationObserver(()=>rev23ApplyHighlights());
 rev23Observer.observe(rowsEl,{childList:true});
+
+document.querySelectorAll(".gps-actions a").forEach(link=>{
+ link.removeAttribute("target");
+ link.addEventListener("click",()=>{
+  if(typeof closeGps==="function")closeGps();
+ });
+});
+window.addEventListener("pageshow",()=>{
+ if(typeof gpsModal!=="undefined"&&gpsModal.classList.contains("open")&&typeof closeGps==="function")closeGps();
+});
+
 setInterval(rev23SyncCounter,1000);setTimeout(rev23SyncCounter,0);
 '''
 pos = text.rfind("</script>")
