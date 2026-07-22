@@ -18,7 +18,7 @@ text = index.read_text(encoding="utf-8")
 text = text.replace("Rev.28", "Rev.29")
 
 # Open the installed NAVER Map app directly instead of showing its mobile-web app banner.
-old_link = '<a class="naver" href="https://m.map.naver.com/" target="_blank" rel="noopener noreferrer">🗺️ 네이버지도</a>'
+old_link = '<a class="naver" href="https://m.map.naver.com/" rel="noopener noreferrer">🗺️ 네이버지도</a>'
 new_link = '<a class="naver" id="naverMapOpen" href="nmap://map?appname=https%3A%2F%2Fgusibzo.github.io%2F1560-timetable%2F">🗺️ 네이버지도</a>'
 if old_link not in text:
     raise RuntimeError("NAVER Map link insertion point was not found")
