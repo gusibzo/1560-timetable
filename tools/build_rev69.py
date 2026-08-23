@@ -15,28 +15,28 @@ finally:
 
 index = root / "index.html"
 text = index.read_text(encoding="utf-8")
-text = text.replace("Rev.68", "Rev.69")
+text = text.replace("Rev.68", "Rev.70")
 text = text.replace(
     'navigator.serviceWorker.register("./sw.js?v=68",{updateViaCache:"none"})',
-    'navigator.serviceWorker.register("./sw.js?v=69",{updateViaCache:"none"})',
+    'navigator.serviceWorker.register("./sw.js?v=70",{updateViaCache:"none"})',
     1,
 )
 
-# Rev69: swap Sunday/Saturday colors everywhere in the calendar.
-# Sunday = blue, Saturday = red, including weekday headers and date numbers.
+# Rev70: requested calendar weekend colors.
+# Sunday = red, Saturday = blue, including weekday headers and date numbers.
 css = r'''
-/* Rev69: weekend colors swapped per user request. */
+/* Rev70: Sunday red / Saturday blue. */
 .calendar-week span:first-child{
-  color:#1767c8!important;
+  color:#df3a43!important;
 }
 .calendar-week span:last-child{
-  color:#df3a43!important;
-}
-.calendar-day.sun .solar-no{
   color:#1767c8!important;
 }
-.calendar-day.sat .solar-no{
+.calendar-day.sun .solar-no{
   color:#df3a43!important;
+}
+.calendar-day.sat .solar-no{
+  color:#1767c8!important;
 }
 '''
 text = text.replace("</style>", css + "\n</style>", 1)
@@ -46,6 +46,6 @@ sw = root / "sw.js"
 if not sw.exists():
     raise RuntimeError("sw.js is missing")
 sw_text = sw.read_text(encoding="utf-8")
-sw_text = re.sub(r'const CACHE_NAME="[^"]+";', 'const CACHE_NAME="1560-timetable-rev69-v1";', sw_text)
-sw_text = re.sub(r'const REVISION="[^"]+";', 'const REVISION="69";', sw_text)
+sw_text = re.sub(r'const CACHE_NAME="[^"]+";', 'const CACHE_NAME="1560-timetable-rev70-v1";', sw_text)
+sw_text = re.sub(r'const REVISION="[^"]+";', 'const REVISION="70";', sw_text)
 sw.write_text(sw_text, encoding="utf-8")
