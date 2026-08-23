@@ -1,5 +1,5 @@
-const CACHE_NAME="1560-timetable-rev34-v1";
-const REVISION="34";
+const CACHE_NAME="1560-timetable-rev35-v1";
+const REVISION="35";
 const CORE=["./","./index.html","./manifest.webmanifest"];
 
 const OLD_GYEONGGI_BADGE='<a class="gyeonggi-badge" href="https://m.gbis.go.kr/search" target="_blank" rel="noopener noreferrer" aria-label="경기버스정보 열기"><span class="bus">🚌</span><span>경기버스</span></a>';
@@ -7,10 +7,23 @@ const NEW_FINANCE_BADGE='<button class="gyeonggi-badge" type="button" id="financ
 const OLD_FINANCE_BUTTON='<button type="button" id="financeBtn" aria-haspopup="dialog" aria-controls="financeModal">💱 환율·주식</button>';
 const NEW_GYEONGGI_LINK='<a href="https://m.gbis.go.kr/search" target="_blank" rel="noopener noreferrer" aria-label="경기버스정보 열기">🚌 경기버스</a>';
 
+/* Rev.35: 달력 주말 색상 강제 고정 — 토요일 파랑 / 일요일 빨강 */
+const WEEKEND_COLOR_FIX=`<style id="weekend-color-fix">
+.calendar-week span:first-child{color:#df3a43!important}
+.calendar-week span:last-child{color:#1767c8!important}
+.calendar-day.sun .solar-no{color:#df3a43!important}
+.calendar-day.sat .solar-no{color:#1767c8!important}
+</style>`;
+
 function swapQuickLinks(html){
   return html
     .replace(OLD_GYEONGGI_BADGE,NEW_FINANCE_BADGE)
     .replace(OLD_FINANCE_BUTTON,NEW_GYEONGGI_LINK);
+}
+
+function enforceWeekendColors(html){
+  if(html.includes('id="weekend-color-fix"'))return html;
+  return html.replace("</head>",`${WEEKEND_COLOR_FIX}</head>`);
 }
 
 async function transformNavigationResponse(response){
@@ -18,13 +31,15 @@ async function transformNavigationResponse(response){
   const contentType=response.headers.get("content-type")||"";
   if(!contentType.includes("text/html"))return response;
 
-  const html=await response.text();
+  let html=await response.text();
+  html=swapQuickLinks(html);
+  html=enforceWeekendColors(html);
   const headers=new Headers(response.headers);
   headers.delete("content-length");
   headers.delete("content-encoding");
   headers.set("content-type","text/html; charset=utf-8");
 
-  return new Response(swapQuickLinks(html),{
+  return new Response(html,{
     status:response.status,
     statusText:response.statusText,
     headers
