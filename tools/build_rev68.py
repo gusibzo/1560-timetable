@@ -22,10 +22,9 @@ text = text.replace(
     1,
 )
 
-# Rev68: replace the tall reference table with a horizontal monthly total.
-# Count each weekday from the month's first Sunday onward, so the leading
-# partial calendar week is excluded. Then each target weekday total is the
-# target column + the immediately previous weekday column.
+# Rev68: horizontal monthly full-attendance summary.
+# Count every date in the displayed month. Each weekday total is the
+# selected rest day plus its immediately previous weekday.
 css = r'''
 /* Rev68: horizontal, auto-calculated monthly full-attendance summary. */
 .rev67-full-attendance{
@@ -85,6 +84,13 @@ css = r'''
   letter-spacing:-.45px;
   white-space:nowrap;
 }
+/* 토요일은 글자·숫자·계산표시 모두 파랑, 일요일은 모두 빨강 */
+.rev68-full-cell:nth-child(6) .rev68-full-day,
+.rev68-full-cell:nth-child(6) .rev68-full-total,
+.rev68-full-cell:nth-child(6) .rev68-full-rule{color:#1767c8!important}
+.rev68-full-cell:nth-child(7) .rev68-full-day,
+.rev68-full-cell:nth-child(7) .rev68-full-total,
+.rev68-full-cell:nth-child(7) .rev68-full-rule{color:#df3a43!important}
 @media(max-width:360px){
   .rev68-full-total{font-size:15px}
   .rev68-full-rule{font-size:6.8px;letter-spacing:-.6px}
@@ -97,11 +103,8 @@ js = r'''
 /* Rev68: calculate the horizontal summary whenever the calendar month changes. */
 function rev68WeekdayCounts(y,m){
   const counts=[0,0,0,0,0,0,0]; // Sun..Sat
-  const first=new Date(y,m,1);
-  const offset=(7-first.getDay())%7;
-  const firstSunday=1+offset;
   const last=new Date(y,m+1,0).getDate();
-  for(let day=firstSunday;day<=last;day++){
+  for(let day=1;day<=last;day++){
     counts[new Date(y,m,day).getDay()]++;
   }
   return counts;
