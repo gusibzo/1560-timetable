@@ -56,14 +56,14 @@ text = text.replace("</style>", css + "\n</style>", 1)
 # Rev76: replace the white Gyeonggi Bus shortcut with the requested photo preview.
 photo_button = r'''<button type="button" id="rev76-photo-thumb" aria-haspopup="dialog" aria-controls="rev76-photo-modal" aria-label="1560 감사 이미지 크게 보기"><img id="rev76-photo-thumb-img" alt="1560 감사 이미지 미리보기"><span>경기버스</span></button>'''
 text, photo_count = re.subn(
-    r'<a\b[^>]*>\s*🚌\s*경기버스\s*</a>',
+    r'<button\b[^>]*id=["\']financeBtn["\'][^>]*>.*?환율·주식.*?</button>',
     photo_button,
     text,
     count=1,
     flags=re.S,
 )
 if photo_count != 1:
-    raise RuntimeError("Gyeonggi Bus shortcut was not found")
+    raise RuntimeError("Finance shortcut for the photo was not found")
 
 photo_css = r'''
 /* Rev76: clickable 1560 thank-you photo. */
