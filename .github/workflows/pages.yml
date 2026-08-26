@@ -20,7 +20,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Prepare Rev75 site
+      - name: Prepare Rev76 site
         shell: bash
         run: |
           mkdir -p _site
