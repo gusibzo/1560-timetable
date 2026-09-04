@@ -40,7 +40,7 @@ if "</style>" not in text:
 text = text.replace("</style>", rev107_css + "</style>", 1)
 
 old_registration = 'navigator.serviceWorker.register("./sw.js?v=106",{updateViaCache:"none"})'
-new_registration = 'navigator.serviceWorker.register("./sw.js?v=107-2",{updateViaCache:"none"})'
+new_registration = 'navigator.serviceWorker.register("./sw.js?v=107-3",{updateViaCache:"none"})'
 if old_registration not in text:
     raise RuntimeError("Rev106 service worker registration was not found")
 text = text.replace(old_registration, new_registration, 1)
@@ -50,6 +50,6 @@ sw = root / "sw.js"
 if not sw.exists():
     raise RuntimeError("sw.js is missing")
 sw_text = sw.read_text(encoding="utf-8")
-sw_text = re.sub(r'const CACHE_NAME="[^"]+";', 'const CACHE_NAME="1560-timetable-rev107-v2";', sw_text)
+sw_text = re.sub(r'const CACHE_NAME="[^"]+";', 'const CACHE_NAME="1560-timetable-rev107-v3";', sw_text)
 sw_text = re.sub(r'const REVISION="[^"]+";', 'const REVISION="107-2";', sw_text)
 sw.write_text(sw_text, encoding="utf-8")
