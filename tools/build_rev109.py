@@ -5,7 +5,7 @@ import sys
 
 
 root = Path(sys.argv[1] if len(sys.argv) > 1 else "_site")
-base_builder = Path(__file__).with_name("build_rev108.py")
+base_builder = Path(__file__).with_name("build_rev107.py")
 
 old_argv = sys.argv[:]
 try:
@@ -16,7 +16,7 @@ finally:
 
 index = root / "index.html"
 text = index.read_text(encoding="utf-8")
-text = text.replace("Rev.108", "Rev.109")
+text = text.replace("Rev.107", "Rev.109")
 
 links_pattern = re.compile(
     r'(?P<a><a id="rev101-route-a".*?</a>)\s*'
@@ -46,6 +46,31 @@ text = text.replace(
 )
 
 rev109_css = r'''
+
+/* Rev108 carried forward: keep the remaining quick buttons below the timetable. */
+.side-tools{
+  position:relative!important;
+  z-index:auto!important;
+  top:auto!important;
+  right:auto!important;
+  bottom:auto!important;
+  width:min(460px,calc(100% - 20px))!important;
+  margin:12px auto calc(18px + env(safe-area-inset-bottom))!important;
+  padding:0 6px!important;
+  display:flex!important;
+  flex-direction:row!important;
+  align-items:center!important;
+  justify-content:flex-end!important;
+  gap:10px!important;
+}
+.side-tool{
+  width:43px!important;
+  height:43px!important;
+  flex:0 0 43px!important;
+}
+#quickCalendar{
+  display:none!important;
+}
 
 /* Rev109: place the 1560A and 1560B shortcuts inside the Gyeonggi Bus button. */
 #rev79-gyeonggi-card{
@@ -150,11 +175,14 @@ if "</style>" not in text:
     raise RuntimeError("Main style block is missing")
 text = text.replace("</style>", rev109_css + "</style>", 1)
 
-old_registration = 'navigator.serviceWorker.register("./sw.js?v=108",{updateViaCache:"none"})'
 new_registration = 'navigator.serviceWorker.register("./sw.js?v=109",{updateViaCache:"none"})'
-if old_registration not in text:
-    raise RuntimeError("Rev108 service worker registration was not found")
-text = text.replace(old_registration, new_registration, 1)
+registration_pattern = re.compile(
+    r'navigator\.serviceWorker\.register\("\./sw\.js\?v=107(?:-5)?",'
+    r'\{updateViaCache:"none"\}\)'
+)
+text, registration_count = registration_pattern.subn(new_registration, text, count=1)
+if registration_count != 1:
+    raise RuntimeError("Rev107 service worker registration was not found")
 index.write_text(text, encoding="utf-8")
 
 sw = root / "sw.js"
