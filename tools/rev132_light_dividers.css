@@ -1,0 +1,43 @@
+/* Rev132: quiet, segmented light accents instead of ruled table borders. */
+.grid thead th {
+  border-bottom:0!important;
+}
+.grid tbody#rows > tr > td {
+  --row-dot:#268ec4;
+  --rail-glow:#268ec42b;
+}
+.grid tbody#rows > tr > td:is(:nth-child(2),:nth-child(3)) {
+  --row-dot:#b9931c;
+  --rail-glow:#d6ad242b;
+}
+:where(body[data-day="sunday"]) .grid tbody#rows > tr > td.edge {
+  --row-dot:#ca716a;
+  --rail-glow:#ca716a2b;
+}
+.grid tbody#rows > tr > td.special-time-pink {
+  --row-dot:#cb5f9b;
+  --rail-glow:#e974ad2b;
+}
+.grid tbody#rows > tr.rev63-row-selected > td:not(.no) {
+  --row-dot:#769b00;
+  --rail-glow:#769b0030;
+}
+.grid tbody#rows > tr > td,
+.grid tbody#rows > tr:last-child > td,
+.grid tbody#rows > tr.rev63-row-selected > td:not(.no) {
+  --rail-core:linear-gradient(90deg,transparent 0 3px,var(--row-dot) 5px 13px,transparent 15px 18px,var(--row-dot) 19px 20px,transparent 21px 24px);
+  --rail-halo:radial-gradient(ellipse 11px 5px at 10px 0,var(--rail-glow) 0,transparent 100%);
+  border-top:0!important;
+  border-bottom:0!important;
+  box-shadow:none!important;
+  /* Background colors and the bus icon's pseudo-elements stay intact. */
+  background-image:var(--rail-core),var(--rail-halo)!important;
+  background-size:24px 2px,24px 6px!important;
+  background-position:left top,left top!important;
+  background-repeat:repeat-x!important;
+}
+.grid tbody#rows > tr:last-child > td {
+  background-image:var(--rail-core),var(--rail-halo),var(--rail-core),var(--rail-halo)!important;
+  background-size:24px 2px,24px 6px,24px 2px,24px 6px!important;
+  background-position:left top,left top,left bottom,left bottom!important;
+}
