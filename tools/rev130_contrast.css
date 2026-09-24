@@ -1,0 +1,26 @@
+/* Rev130: two-tone quick buttons and continuous, clear timetable rows. */
+.info-bar > a[href*="weather.go.kr"],
+.info-bar #rev79-gyeonggi-link,
+.info-bar > #roadTrafficBtn {
+  border:4px solid #ffdf68!important;
+  background:linear-gradient(180deg,#286b9d 0%,#17466f 100%)!important;
+  color:#fff!important;
+  box-shadow:inset 0 0 0 1px #ffffff70,0 2px 0 #183f67!important;
+  text-shadow:0 1px 1px #0c2849;
+}
+.info-bar > a[href*="weather.go.kr"]:active,
+.info-bar #rev79-gyeonggi-link:active,
+.info-bar > #roadTrafficBtn:active {
+  background:#123958!important;
+  border-color:#fff0a6!important;
+  box-shadow:inset 0 0 0 1px #ffffff70!important;
+}
+.grid thead th {
+  border-bottom:2px solid #6e879f!important;
+}
+.grid tbody#rows > tr > td {
+  border-top:2px solid #6e879f!important;
+}
+.grid tbody#rows > tr:last-child > td {
+  border-bottom:2px solid #6e879f!important;
+}
