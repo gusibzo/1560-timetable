@@ -1,0 +1,35 @@
+/* Rev131: bold dotted horizontal dividers in each cell's color family. */
+.grid thead th {
+  --row-dot:#648eae;
+  border-bottom:3px dotted var(--row-dot)!important;
+}
+.grid thead th:first-child,
+body[data-day="sunday"] .grid thead th:not(:first-child) {
+  --row-dot:#c27695;
+}
+body[data-day="saturday"] .grid thead th:not(:first-child) {
+  --row-dot:#568bc2;
+}
+.grid tbody#rows > tr > td {
+  --row-dot:#648eae;
+  border-top:3px dotted var(--row-dot)!important;
+}
+.grid tbody#rows > tr > td:is(:nth-child(2),:nth-child(3)) {
+  --row-dot:#ba9228;
+}
+:where(body[data-day="sunday"]) .grid tbody#rows > tr > td.edge {
+  --row-dot:#cf746e;
+}
+.grid tbody#rows > tr > td.special-time-pink {
+  --row-dot:#c27695;
+  box-shadow:none!important;
+}
+.grid tbody#rows > tr.rev63-row-selected > td:not(.no) {
+  --row-dot:#8aa200;
+  /* Remove the old solid inset bars so the dots stay visible. */
+  box-shadow:none!important;
+  border-bottom:3px dotted var(--row-dot)!important;
+}
+.grid tbody#rows > tr:last-child > td {
+  border-bottom:3px dotted var(--row-dot)!important;
+}
