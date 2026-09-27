@@ -1,0 +1,13 @@
+/* Raise only the divider between timetable rows 6 and 7. */
+.grid tbody#rows > tr:nth-child(6) > td {
+  position:relative;
+  z-index:1;
+  background-image:
+    var(--rail-core),var(--rail-halo),
+    linear-gradient(180deg,rgba(255,255,255,.95) 0 1px,var(--row-dot) 1px 3px,transparent 3px),
+    linear-gradient(180deg,transparent,rgba(17,49,77,.23))!important;
+  background-size:24px 2px,24px 6px,100% 4px,100% 8px!important;
+  background-position:left top,left top,left bottom,left bottom!important;
+  background-repeat:repeat-x,repeat-x,no-repeat,no-repeat!important;
+  box-shadow:0 5px 6px -4px rgba(17,49,77,.68)!important;
+}
