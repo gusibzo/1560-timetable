@@ -1,0 +1,23 @@
+{
+  "name": "1560 시간표",
+  "short_name": "1560",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#b4bac3",
+  "theme_color": "#b4bac3",
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

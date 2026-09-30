@@ -25,7 +25,7 @@ jobs:
         run: |
           mkdir -p _site
           rsync -a --exclude '.git' --exclude '_site' ./ _site/
-          python3 tools/build_rev137.py _site
+          python3 tools/build_rev138.py _site
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
