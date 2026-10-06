@@ -1,5 +1,6 @@
 import {readFileSync} from "node:fs";
 const root = process.argv[2] || "_site";
+const expectedRevision = process.argv[3] || "141";
 const html = readFileSync(root + "/index.html", "utf8");
 function between(start, end) {
   const a = html.indexOf(start), b = html.indexOf(end, a + start.length);
@@ -78,7 +79,7 @@ new Function("Date","document","window","location","setInterval","setTimeout","s
 )(TestDate, document, window, {search:""}, ()=>{}, ()=>{}, value=>{instant=value;}, listeners);
 for (const script of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)) new Function(script[1]);
 
-if (!html.includes("Rev.141") || !readFileSync(root+"/sw.js","utf8").includes('REVISION="141"')) throw new Error("Revision mismatch");
+if (!html.includes("Rev."+expectedRevision) || !readFileSync(root+"/sw.js","utf8").includes('REVISION="'+expectedRevision+'"')) throw new Error("Revision mismatch");
 if (html.includes("rev124TodayIsFiveBus")) throw new Error("Obsolete temporary timetable");
 for (const revision of [94,95,96]) {
   const page = readFileSync(root+"/1560_timetable_Rev"+revision+"_KCC_CCTV.html","utf8");
@@ -91,4 +92,4 @@ for (const revision of [94,95,96]) {
   });
   if (redirected!=="https://gusibzo.github.io/1560-timetable/?season=autumn#rows") throw new Error("Legacy redirect mismatch");
 }
-console.log("Rev141 Korean date and legacy path checks passed ("+(process.env.TZ||"default")+")");
+console.log("Rev"+expectedRevision+" Korean date and legacy path checks passed ("+(process.env.TZ||"default")+")");
