@@ -1,0 +1,22 @@
+/* Keep all three controls inside the existing header width. */
+.top-quick-links{display:grid!important;grid-template-columns:minmax(0,1fr) 76px minmax(0,1fr)!important;gap:6px!important;align-items:stretch!important}
+.top-quick-links .gyeonggi-badge{min-width:0!important;min-height:48px!important;font-size:clamp(11px,3.3vw,14px)!important;padding:5px 3px!important;gap:3px!important}
+.top-quick-links .gyeonggi-badge .bus{font-size:1.1em!important;margin:0!important}
+#outdoorTempBtn{min-width:0;border:1px solid #72a4c4;border-radius:10px;background:linear-gradient(150deg,#244d6e,#132e4b);color:#fff;font-family:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:4px 1px;line-height:1.15}
+#outdoorTempBtn small{font-size:10px;color:#d8edff;font-weight:700}
+#outdoorTempValue{font-size:17px;font-weight:900;color:#c8ff72;white-space:nowrap;letter-spacing:-.4px}
+#outdoorTempDialog{box-sizing:border-box;width:calc(100% - 36px);max-width:380px;max-height:85dvh;overflow:auto;margin:auto;padding:20px;border:1px solid #bfd0e3;border-radius:22px;background:#f8fbff;color:#183651;font-family:inherit;box-shadow:0 20px 60px #0005}
+#outdoorTempDialog::backdrop{background:#08182e99}
+.outdoor-temp-head{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.outdoor-temp-head h2{font-size:20px;margin:0}
+#outdoorTempClose{border:0;border-radius:50%;width:40px;height:40px;background:#e1e9f2;color:#183651;font-size:28px;cursor:pointer}
+#outdoorTempMessage{font-size:18px;font-weight:800;line-height:1.5;margin:18px 0 8px}
+#outdoorTempUpdate{font-size:12px;color:#4b6279;line-height:1.5}
+.outdoor-temp-note{font-size:13px;line-height:1.6;color:#4b6279}
+#outdoorTempRefresh{display:block;width:100%;min-height:44px;border:0;border-radius:12px;background:#204b73;color:white;font:700 16px/1.4 inherit;cursor:pointer;margin:16px 0 12px}
+#outdoorTempRefresh:disabled{opacity:.6}
+.outdoor-temp-source{font-size:12px;color:#285d91;text-decoration:underline}
+.traffic-choice.banpo{border-color:#708dc1;background:linear-gradient(135deg,#f0f4ff,#fff)}
+.traffic-choice.banpo strong{color:#294b7d!important}
+@media(min-width:900px){.top-quick-links{grid-column:1/-1!important;grid-row:2!important}.route-meta{grid-row:1!important}}
+@media(max-width:350px){.top-quick-links{grid-template-columns:minmax(0,1fr) 68px minmax(0,1fr)!important;gap:4px!important}.top-quick-links .gyeonggi-badge .bus{display:none!important}}
