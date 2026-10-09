@@ -20,17 +20,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Prepare Rev147 site
+      - name: Prepare Rev148 site
         shell: bash
         run: |
           mkdir -p _site
           rsync -a --exclude '.git' --exclude '_site' ./ _site/
-          python3 tools/build_rev147.py _site
+          python3 tools/build_rev148.py _site
       - name: Verify Korean dates and legacy redirects
         shell: bash
         run: |
           for timetable_tz in Asia/Seoul UTC America/Los_Angeles; do
-            TZ="$timetable_tz" node tools/test_rev141.mjs _site 147
+            TZ="$timetable_tz" node tools/test_rev141.mjs _site 148
           done
       - name: Configure Pages
         uses: actions/configure-pages@v5
