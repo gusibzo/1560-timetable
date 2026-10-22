@@ -1,0 +1,10 @@
+/* Bright blue, with the weather and reading sharing the existing center column. */
+#outdoorTempBtn{background:linear-gradient(145deg,#c5efff,#70c6ff);border-color:#45b0f4;color:#071d33}
+#outdoorTempBtn small{color:#071d33;font-size:10px;white-space:nowrap}
+#outdoorTempValue{color:#071d33;font-size:17px}
+#outdoorTempValue[data-status="true"]{font-size:11px;letter-spacing:-.3px}
+.outdoor-temp-reading{display:flex;align-items:center;justify-content:center;gap:3px;max-width:100%;min-width:0}
+#outdoorWeatherIcon{display:inline-flex;flex:0 0 22px;width:22px;height:22px;align-items:center;justify-content:center}
+#outdoorWeatherIcon[hidden]{display:none}
+#outdoorWeatherIcon svg{display:block;width:100%;height:100%}
+@media(max-width:350px){.outdoor-temp-reading{gap:2px}#outdoorWeatherIcon{flex-basis:19px;width:19px;height:21px}#outdoorTempValue{font-size:16px}}
