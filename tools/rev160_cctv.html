@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#102b47">
+<title>1560 도로 CCTV</title>
+<style>
+*{box-sizing:border-box}html{height:100%;background:#080b10}body{margin:0;height:100%;height:100dvh;display:grid;grid-template-rows:auto minmax(0,1fr) auto;background:#080b10;color:#fff;font-family:system-ui,sans-serif}
+header{display:flex;align-items:center;gap:12px;padding:calc(10px + env(safe-area-inset-top)) 12px 10px;background:#102b47}
+a{color:#bfe5ff}header a{flex:none;padding:9px 10px;background:#234a70;color:#fff;border-radius:10px;text-decoration:none;font-size:14px;font-weight:800}
+header div{min-width:0}h1{margin:0;font-size:18px;line-height:1.4}#cameraStatus{margin:2px 0 0;font-size:12px;color:#c7d9e8}
+.video-window{min-height:0;overflow:hidden;position:relative}iframe{display:block;border:0;width:100%;height:calc(100% + 76px);background:#000}
+footer{position:relative;z-index:1;padding:10px 10px calc(10px + env(safe-area-inset-bottom));background:#102b47;box-shadow:0 -3px 12px #0005}
+nav{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);gap:8px;align-items:stretch}
+button,select{font:inherit}nav button{min-height:64px;padding:6px;border:2px solid #70bcff;border-radius:12px;background:#1e63ad;color:white;font-weight:800;cursor:pointer;line-height:1.2;overflow-wrap:anywhere}
+nav button span{display:block}nav button .arrow{font-size:30px;line-height:1}nav button:disabled{opacity:.4;cursor:default}
+label{display:flex;align-items:center;min-width:0}select{width:100%;min-height:64px;background:#e6f4ff;color:#123553;border:0;border-radius:12px;padding:6px;font-weight:800;font-size:15px}
+.support{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;font-size:12px}.support button{min-height:32px;border:1px solid #587da0;border-radius:8px;background:#234a70;color:#fff;padding:5px 10px;font-size:13px}
+:focus-visible{outline:3px solid #ffdf59;outline-offset:2px}
+</style>
+</head>
+<body>
+<header><a href="./index.html">← 시간표</a><div><h1 id="cameraTitle">경부고속도로 CCTV</h1><p id="cameraStatus" role="status" aria-live="polite">카메라 확인 중</p></div></header>
+<main class="video-window"><iframe id="cctvFrame" title="도로 CCTV 영상" referrerpolicy="no-referrer" allow="autoplay; fullscreen" allowfullscreen></iframe></main>
+<footer>
+  <nav aria-label="CCTV 카메라 이동">
+    <button id="cctvPrevious" type="button"><span class="arrow" aria-hidden="true">‹</span><span id="previousName">이전 CCTV</span></button>
+    <label><span hidden>카메라 선택</span><select id="cameraSelect" aria-label="CCTV 카메라 선택"></select></label>
+    <button id="cctvNext" type="button"><span class="arrow" aria-hidden="true">›</span><span id="nextName">다음 CCTV</span></button>
+  </nav>
+  <div class="support"><button id="cctvReload" type="button">영상 새로고침</button><a id="cctvSource" rel="noreferrer">영상이 안 보이면 네이버에서 열기</a></div>
+</footer>
+<noscript>카메라 이동을 사용하려면 브라우저의 자바스크립트를 켜주세요.</noscript>
+<script id="cctvCameraData" type="application/json">__CAMERA_DATA__</script>
+<script id="rev160-cctv-controller">
+(() => {
+  const cameras = JSON.parse(document.getElementById('cctvCameraData').textContent);
+  const frame = document.getElementById('cctvFrame');
+  const previous = document.getElementById('cctvPrevious');
+  const next = document.getElementById('cctvNext');
+  const select = document.getElementById('cameraSelect');
+  const source = document.getElementById('cctvSource');
+  const title = document.getElementById('cameraTitle');
+  const status = document.getElementById('cameraStatus');
+  const requested = Number(new URLSearchParams(location.search).get('channel'));
+  let index = cameras.findIndex(camera => camera.channel === requested);
+  if (index < 0) index = cameras.findIndex(camera => camera.channel === 6043);
+  for (const camera of cameras) {
+    const option = document.createElement('option');
+    option.value = String(camera.channel);
+    option.textContent = camera.name;
+    select.appendChild(option);
+  }
+  function render() {
+    const camera = cameras[index];
+    const url = new URL('https://rtt.map.naver.com/end-traffic/bridges/cctv/web/home');
+    url.search = new URLSearchParams({cctvGroupId:'17',channel:String(camera.channel),seq:String(index + 1)}).toString();
+    // A new document is loaded for every camera; the provider's in-page arrows
+    // currently leave the old video selected in a standalone browser.
+    frame.src = url.href;
+    frame.title = camera.name + ' CCTV 영상';
+    source.href = url.href;
+    title.textContent = camera.road + ' · ' + camera.name;
+    status.textContent = camera.name + ' 선택';
+    select.value = String(camera.channel);
+    previous.disabled = index === 0;
+    next.disabled = index === cameras.length - 1;
+    const prevName = cameras[index - 1]?.name;
+    const nextName = cameras[index + 1]?.name;
+    document.getElementById('previousName').textContent = prevName || '첫 카메라';
+    document.getElementById('nextName').textContent = nextName || '마지막 카메라';
+    previous.setAttribute('aria-label', prevName ? '이전 CCTV ' + prevName : '이전 CCTV 없음');
+    next.setAttribute('aria-label', nextName ? '다음 CCTV ' + nextName : '다음 CCTV 없음');
+    const page = new URL(location.href);
+    page.searchParams.set('channel', String(camera.channel));
+    history.replaceState(null, '', page.href);
+  }
+  function move(delta) {
+    const target = index + delta;
+    if (target < 0 || target >= cameras.length) return;
+    index = target;
+    render();
+  }
+  previous.addEventListener('click', () => move(-1));
+  next.addEventListener('click', () => move(1));
+  select.addEventListener('change', () => {
+    const target = cameras.findIndex(camera => String(camera.channel) === select.value);
+    if (target >= 0) { index = target; render(); }
+  });
+  document.getElementById('cctvReload').addEventListener('click', render);
+  render();
+})();
+</script>
+</body>
+</html>
