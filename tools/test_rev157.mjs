@@ -22,7 +22,7 @@ function fixture() {
   vm.runInNewContext(script,{
     document,window:{addEventListener(name,fn){events[name]=fn;}},
     navigator:{geolocation:{getCurrentPosition(ok,err){
-      if(f.deny) err({code:1}); else ok({coords:{latitude:37.5,longitude:127}});
+      if(f.deny) err({code:1}); else ok({timestamp:Date.now(),coords:{latitude:37.5,longitude:127,accuracy:25}});
     }}},URLSearchParams,AbortController,Intl,Date,
     setTimeout(fn,delay){if(delay===800) initial=fn;return 1;},clearTimeout(){},setInterval(){},
     async fetch(url){requests.push(new URL(url));if(f.fail)throw Error('offline');return {
