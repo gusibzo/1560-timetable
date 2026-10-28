@@ -1,0 +1,65 @@
+<style id="rev169-cctv-overlay-style">
+#cctvOverlay{position:fixed;inset:0;width:100%;max-width:none;height:100%;height:100dvh;max-height:none;margin:0;padding:0;border:0;background:#080b10;color:#fff;overflow:hidden;z-index:2147483647}
+#cctvOverlay[open]{display:grid;grid-template-rows:auto minmax(0,1fr)}
+#cctvOverlay::backdrop{background:#080b10}
+#cctvOverlay .cctv-overlay-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:calc(8px + env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) 8px max(12px,env(safe-area-inset-left));background:#102b47;font:800 18px/1.4 system-ui,sans-serif}
+#cctvOverlayClose{flex:none;min-height:52px;padding:4px 14px;border:1px solid #8acbff;border-radius:10px;background:#234a70;color:#fff;font:800 17px/1.2 system-ui,sans-serif;cursor:pointer;touch-action:manipulation}
+#cctvOverlayClose span{font-size:34px;vertical-align:middle;margin-right:6px}
+#cctvOverlayClose:focus-visible{outline:3px solid #ffdf59;outline-offset:2px}
+#cctvOverlayBody{min-height:0;overflow:hidden}
+#cctvOverlayBody iframe{display:block;width:100%;height:100%;border:0;background:#000}
+</style>
+<dialog id="cctvOverlay" aria-labelledby="cctvOverlayTitle">
+  <div class="cctv-overlay-bar"><strong id="cctvOverlayTitle">도로 CCTV</strong><button id="cctvOverlayClose" type="button" aria-label="CCTV 닫고 시간표로 돌아가기"><span aria-hidden="true">×</span>시간표</button></div>
+  <div id="cctvOverlayBody"></div>
+</dialog>
+<script id="rev169-cctv-overlay">
+(() => {
+  const overlay = document.getElementById('cctvOverlay');
+  const body = document.getElementById('cctvOverlayBody');
+  const close = document.getElementById('cctvOverlayClose');
+  const title = document.getElementById('cctvOverlayTitle');
+  const traffic = document.getElementById('trafficModal');
+  let frame = null;
+  let previousOverflow = '';
+  function closeCctv() {
+    if (!overlay.open) return;
+    // Removing the whole frame stops playback and discards its camera history.
+    if (frame) { frame.remove(); frame = null; }
+    if (typeof overlay.close === 'function') overlay.close();
+    else overlay.removeAttribute('open');
+    document.documentElement.style.overflow = previousOverflow;
+    document.getElementById('roadTrafficBtn')?.focus({preventScroll:true});
+  }
+  for (const link of document.querySelectorAll('#trafficModal a[href^="./cctv.html?"]')) {
+    link.addEventListener('click', event => {
+      if (event.defaultPrevented || event.button > 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+      event.preventDefault();
+      if (overlay.open) closeCctv();
+      const url = new URL(link.href, location.href);
+      url.searchParams.set('embedded', '1');
+      url.searchParams.set('v', '169');
+      traffic.classList.remove('open');
+      title.textContent = link.querySelector('strong')?.textContent || '도로 CCTV';
+      frame = document.createElement('iframe');
+      frame.title = title.textContent;
+      frame.allow = 'autoplay; fullscreen';
+      frame.allowFullscreen = true;
+      frame.referrerPolicy = 'no-referrer';
+      frame.src = url.href;
+      body.appendChild(frame);
+      previousOverflow = document.documentElement.style.overflow;
+      document.documentElement.style.overflow = 'hidden';
+      if (typeof overlay.showModal === 'function') overlay.showModal();
+      else overlay.setAttribute('open', '');
+      close.focus();
+    });
+  }
+  close.addEventListener('click', closeCctv);
+  overlay.addEventListener('cancel', event => { event.preventDefault(); closeCctv(); });
+  window.addEventListener('message', event => {
+    if (event.origin !== location.origin || !frame || event.source !== frame.contentWindow) return;
+    if (event.data?.type === '1560-cctv-close') closeCctv();
+  });
+})();
+</script>
