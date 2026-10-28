@@ -36,4 +36,12 @@ const stale=fixture();stale.data.stations.forEach(s=>s.observedAt=now-46*60000);
 const oldFile=fixture();oldFile.data.fetchedAt=now-46*60000;await oldFile.start();assert.equal(oldFile.node('outdoorTempValue').textContent,'--°C');
 const denied=fixture();denied.denied=true;await denied.start();assert.equal(denied.requests.length,0);assert.equal(denied.node('outdoorTempValue').textContent,'--°C');
 const malformed=fixture();malformed.data.stations.forEach(s=>s.temperature='');await malformed.start();assert.equal(malformed.node('outdoorTempValue').textContent,'--°C');
+// Polling URLs must not accumulate snapshots in the service-worker cache.
+const handlers={};let cacheReads=0,result;
+vm.runInNewContext(readFileSync(root+'/sw.js','utf8'),{URL,Response,
+  self:{location:{origin:'https://gusibzo.github.io'},registration:{scope:'https://gusibzo.github.io/1560-timetable/'},addEventListener(k,fn){handlers[k]=fn;}},
+  caches:{async open(){cacheReads++;throw Error('Weather must bypass cache');}},
+  async fetch(){return new Response('live weather');}});
+handlers.fetch({request:{method:'GET',mode:'cors',url:'https://gusibzo.github.io/1560-timetable/weather/kma.json?t=1'},respondWith(r){result=r;}});
+assert.equal(await (await result).text(),'live weather');assert.equal(cacheReads,0);
 console.log('Rev170 KMA decimals, zero/negative temperatures, moving location, private GPS, moon, denial and stale/error handling passed');

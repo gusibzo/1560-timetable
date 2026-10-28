@@ -36,4 +36,15 @@ html = html.replace('Rev.169', 'Rev.170').replace(registration, registration.rep
 index.write_text(html, encoding='utf-8')
 sw = root / 'sw.js'
 text = sw.read_text(encoding='utf-8').replace('1560-timetable-rev169-v1', '1560-timetable-rev170-v1').replace('REVISION="169"', 'REVISION="170"')
+anchor = '  // Keep the CCTV page separate from the timetable navigation cache.'
+if text.count(anchor) != 1:
+    raise RuntimeError('Expected service worker fetch handler')
+text = text.replace(anchor, '''  // Weather is live data. Never retain each polling URL or reuse an offline
+  // snapshot as a fresh temperature; the widget handles network failure.
+  if(url.pathname===new URL("./weather/kma.json",self.registration.scope).pathname){
+    event.respondWith(fetch(request,{cache:"no-store"}).catch(()=>Response.error()));
+    return;
+  }
+
+''' + anchor, 1)
 sw.write_text(text, encoding='utf-8')
