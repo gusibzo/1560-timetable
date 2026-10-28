@@ -77,7 +77,10 @@ new Function("Date","document","window","location","setInterval","setTimeout","s
   "let state={day:todayKey()};function render(){}\n" +
   clock + midnight + season + checks
 )(TestDate, document, window, {search:""}, ()=>{}, ()=>{}, value=>{instant=value;}, listeners);
-for (const script of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)) new Function(script[1]);
+for (const script of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)) {
+  if (/type=["']application\/(?:ld\+)?json["']/i.test(script[1])) JSON.parse(script[2]);
+  else new Function(script[2]);
+}
 
 if (!html.includes("Rev."+expectedRevision) || !readFileSync(root+"/sw.js","utf8").includes('REVISION="'+expectedRevision+'"')) throw new Error("Revision mismatch");
 if (html.includes("rev124TodayIsFiveBus")) throw new Error("Obsolete temporary timetable");

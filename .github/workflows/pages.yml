@@ -4,7 +4,7 @@ on:
     branches: [main]
   workflow_dispatch:
   schedule:
-    - cron: '6,16,26,36,46,56 * * * *'
+    - cron: '*/5 * * * *'
 permissions:
   contents: read
   pages: write
@@ -22,19 +22,21 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Prepare Rev170 site
+      - name: Prepare Rev171 site
         shell: bash
         run: |
           mkdir -p _site
           rsync -a --exclude '.git' --exclude '_site' ./ _site/
-          python3 tools/build_rev170.py _site
+          python3 tools/build_rev171.py _site
       - name: Refresh public KMA observations
         run: python3 tools/fetch_kma_weather.py _site/weather/kma.json
+      - name: Include weather in the opening page
+        run: python3 tools/embed_kma_weather.py _site
       - name: Verify Korean dates and legacy redirects
         shell: bash
         run: |
           for timetable_tz in Asia/Seoul UTC America/Los_Angeles; do
-            TZ="$timetable_tz" node tools/test_rev141.mjs _site 170
+            TZ="$timetable_tz" node tools/test_rev141.mjs _site 171
           done
           node tools/test_rev156.mjs _site
           node tools/test_rev160.mjs _site
@@ -42,7 +44,7 @@ jobs:
           node tools/test_rev162.mjs _site
           node tools/test_rev168.mjs _site
           node tools/test_rev169.mjs _site
-          node tools/test_rev170.mjs _site
+          node tools/test_rev171.mjs _site
           python3 tools/test_kma_weather.py
       - name: Configure Pages
         uses: actions/configure-pages@v5
