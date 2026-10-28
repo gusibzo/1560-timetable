@@ -49,4 +49,9 @@ const cadence=fixture();await flush();assert.equal(cadence.intervals[0][1],30000
 const before=cadence.requests.length;
 now+=299999;await cadence.events.pageshow();await flush();assert.equal(cadence.requests.length,before);
 now+=1;await cadence.intervals[0][0]();await flush();assert.equal(cadence.requests.length,before+1,'Refresh the KMA feed at five minutes');
+const delayed=fixture({delayedNetwork:true});await flush();
+const openedAt=now;now+=2000;delayed.resolveNetwork();await flush();
+const afterInitial=delayed.requests.length;now=openedAt+300000;
+await delayed.intervals[0][0]();await flush();
+assert.equal(delayed.requests.length,afterInitial+1,'A slow initial download must not postpone the first five-minute refresh to ten minutes');
 console.log('Rev172 embedded startup avoids a blocking download; GPS/data requests run concurrently; short GPS fallback, stale data and denied permission passed');

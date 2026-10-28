@@ -123,7 +123,7 @@
     if (validSnapshot(snapshot)) return Promise.resolve(snapshot);
     return fetchSnapshot();
   }
-  async function load() {
+  async function load(forceRefresh = false) {
     if (busy || document.hidden) return;
     busy = true;
     try {
@@ -144,7 +144,7 @@
       const detail = '기상청 관측 기온 ' + text + ' · ' + station.name + ' 관측소 · ' + time + ' 관측 · 현재 위치에서 약 ' + station.km.toFixed(1) + 'km'
         + (sky && condition?.label ? ' · 날씨 그림: ' + sky.name + ' ' + sky.description : '');
       state(text,detail,condition);
-      if (Date.now() - lastFetch >= 300000) fetchSnapshot().then(() => { if (!busy) load(); }).catch(() => {});
+      if (forceRefresh === true || Date.now() - lastFetch >= 300000) fetchSnapshot().then(() => { if (!busy) load(); }).catch(() => {});
     } catch (error) {
       state('--°C', error.code === 1 ? '휴대폰과 이 사이트의 정확한 위치 권한을 허용해 주세요'
         : error.code === 'position' || [0,2,3].includes(error.code) ? '현재 위치를 확인하지 못했습니다. 위치 설정을 확인해 주세요'
@@ -155,7 +155,7 @@
     }
   }
   load();
-  setInterval(load,5*60*1000);
+  setInterval(() => load(true),5*60*1000);
   document.addEventListener('visibilitychange',() => {if (!document.hidden) load();});
   window.addEventListener('pageshow',load);
   window.addEventListener('online',load);
