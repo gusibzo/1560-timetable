@@ -6,7 +6,7 @@ const root=process.argv[2]||'_site';
 const page=readFileSync(root+'/cctv.html','utf8');
 const main=readFileSync(root+'/index.html','utf8');
 const data=page.match(/<script id="cctvCameraData" type="application\/json">([\s\S]*?)<\/script>/)[1];
-const cameras=JSON.parse(data);
+const cameras=JSON.parse(data).filter(camera=>(camera.group||17)===17);
 const code=page.match(/<script id="rev160-cctv-controller">([\s\S]*?)<\/script>/)[1];
 for(const channel of [6043,100,78]) assert.ok(main.includes('./cctv.html?channel='+channel));
 assert.ok(readFileSync(root+'/sw.js','utf8').includes('"./cctv.html"'));

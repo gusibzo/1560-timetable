@@ -1,0 +1,58 @@
+[
+  {
+    "channel": 954,
+    "name": "한남IC",
+    "road": "강남대로",
+    "group": 94,
+    "seq": 1
+  },
+  {
+    "channel": 349,
+    "name": "신사역사거리",
+    "road": "강남대로",
+    "group": 94,
+    "seq": 2
+  },
+  {
+    "channel": 6057,
+    "name": "논현역",
+    "road": "강남대로",
+    "group": 94,
+    "seq": 3
+  },
+  {
+    "channel": 6929,
+    "name": "교보타워R",
+    "road": "강남대로",
+    "group": 94,
+    "seq": 4
+  },
+  {
+    "channel": 6058,
+    "name": "강남역",
+    "road": "강남대로",
+    "group": 94,
+    "seq": 5
+  },
+  {
+    "channel": 348,
+    "name": "뱅뱅사거리",
+    "road": "강남대로",
+    "group": 94,
+    "seq": 6
+  },
+  {
+    "channel": 6059,
+    "name": "양재역",
+    "road": "강남대로",
+    "group": 94,
+    "seq": 7
+  },
+  {
+    "channel": 6060,
+    "name": "교육개발원입구",
+    "road": "강남대로",
+    "group": 94,
+    "seq": 8
+  }
+]
