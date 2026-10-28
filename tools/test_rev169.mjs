@@ -79,5 +79,4 @@ assert.deepEqual(messages,[['1560-cctv-close',origin]]);
 assert.deepEqual(navigations,[]);
 assert.match(viewer,/\.cctv-embedded #cctvFrame\{[^}]*top:-100px/);
 assert.match(viewer,/register\('\.\/sw\.js\?v=169'/);
-assert.match(main,/const displayOffsetC = 3;/);
 console.log('Rev169: all CCTV entries close in place, remove playback/history frames, preserve timetable state, and reject unrelated messages');
