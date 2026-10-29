@@ -5,7 +5,7 @@ import vm from 'node:vm';
 const root = process.argv[2] || '_site';
 const main = readFileSync(root + '/index.html', 'utf8');
 const page = readFileSync(root + '/cctv.html', 'utf8');
-assert.match(main, /id="kyoboCctvLink" href="\.\/cctv\.html\?channel=6929&amp;v=(?:168|169|173)"/);
+assert.match(main, /id="kyoboCctvLink" href="\.\/cctv\.html\?channel=6929&amp;v=(?:168|169|173|174)"/);
 assert.match(main, /교보문고 사거리 CCTV/);
 const data = page.match(/<script id="cctvCameraData" type="application\/json">([\s\S]*?)<\/script>/)[1];
 const code = page.match(/<script id="rev160-cctv-controller">([\s\S]*?)<\/script>/)[1];
