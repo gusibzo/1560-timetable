@@ -26,7 +26,7 @@ function fixture(channel=6043){
   };
   node('cctvCameraData').textContent=data;
   const location={href:'https://gusibzo.github.io/1560-timetable/cctv.html?channel='+channel,search:'?channel='+channel};
-  vm.runInNewContext(code,{URL,URLSearchParams,location,history:{replaceState(a,b,url){location.href=url;location.search=new URL(url).search;}},document:{getElementById:node,createElement:()=>({})}});
+  vm.runInNewContext(code,{setTimeout(){return 1;},clearTimeout(){},URL,URLSearchParams,location,history:{replaceState(a,b,url){location.href=url;location.search=new URL(url).search;}},document:{getElementById:node,createElement:()=>({})}});
   return{node,loads,location,click(id){node(id).events.click();},choose(channel){node('cameraSelect').value=String(channel);node('cameraSelect').events.change();},channel(){return Number(new URL(loads.at(-1)).searchParams.get('channel'));}};
 }
 const f=fixture();

@@ -46,7 +46,7 @@ for (const link of links) {
   const frame=frames.at(-1);
   assert.equal(node('cctvOverlay').open,true);
   assert.equal(new URL(frame.src).searchParams.get('embedded'),'1');
-  assert.equal(new URL(frame.src).searchParams.get('v'),'169');
+  assert.equal(new URL(frame.src).searchParams.get('v'),'173');
   assert.equal(node('html').style.overflow,'hidden');
   // Neither cross-origin content nor a stale/different child can close it.
   for(const message of [
@@ -78,5 +78,5 @@ node('cctvClose').events.click({preventDefault(){}});
 assert.deepEqual(messages,[['1560-cctv-close',origin]]);
 assert.deepEqual(navigations,[]);
 assert.match(viewer,/\.cctv-embedded #cctvFrame\{[^}]*top:-100px/);
-assert.match(viewer,/register\('\.\/sw\.js\?v=169'/);
+assert.match(viewer,/register\('\.\/sw\.js\?v=173'/);
 console.log('Rev169: all CCTV entries close in place, remove playback/history frames, preserve timetable state, and reject unrelated messages');

@@ -5,7 +5,7 @@ import vm from 'node:vm';
 const root = process.argv[2] || '_site';
 const main = readFileSync(root + '/index.html', 'utf8');
 const page = readFileSync(root + '/cctv.html', 'utf8');
-assert.match(main, /id="kyoboCctvLink" href="\.\/cctv\.html\?channel=6929&amp;v=(?:168|169)"/);
+assert.match(main, /id="kyoboCctvLink" href="\.\/cctv\.html\?channel=6929&amp;v=(?:168|169|173)"/);
 assert.match(main, /교보문고 사거리 CCTV/);
 const data = page.match(/<script id="cctvCameraData" type="application\/json">([\s\S]*?)<\/script>/)[1];
 const code = page.match(/<script id="rev160-cctv-controller">([\s\S]*?)<\/script>/)[1];
@@ -21,7 +21,7 @@ node('cctvCameraData').textContent = data;
 node('cctvFrame').contentWindow = {location:{replace(url) { loads.push(new URL(url)); }}};
 const location = {href:'https://gusibzo.github.io/1560-timetable/cctv.html?channel=6929&v=168',
   search:'?channel=6929&v=168', replace(url) { exits.push(url); }};
-const context = {URL, URLSearchParams, location,
+const context = {setTimeout(){return 1;},clearTimeout(){},URL, URLSearchParams, location,
   history:{replaceState(a,b,url) { location.href=url; }},
   document:{getElementById:node, createElement:()=>({})}};
 vm.runInNewContext(code, context);
