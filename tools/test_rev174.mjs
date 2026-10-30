@@ -11,5 +11,5 @@ assert.match(html,/<a id="outdoorTempBtn" href="https:\/\/www.weather.go.kr\/w\/
 assert.match(html,/\.info-bar > #busBoardBtn,/);
 assert.match(html,/id="rev173-outdoor-script"/);
 assert.match(html,/id="rev169-cctv-overlay"/);
-assert.match(html,/sw\.js\?v=174/);
+assert.match(html,/sw\.js\?v=(?:174|175)/);
 console.log('Rev174: shared board replaces only the lower weather link, preserving temperature and CCTV');
