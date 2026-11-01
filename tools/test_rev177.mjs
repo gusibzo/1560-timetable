@@ -5,6 +5,16 @@ const root=process.argv[2]||'_site';
 const main=readFileSync(root+'/index.html','utf8');
 const page=readFileSync(root+'/alarm.html','utf8');
 const sw=readFileSync(root+'/sw.js','utf8');
+import {existsSync} from 'node:fs';
+// Home-screen icon: the alarm page has its own installable manifest.
+const am=JSON.parse(readFileSync(root+'/alarm.webmanifest','utf8'));
+assert.equal(am.start_url,'./alarm.html');assert.equal(am.display,'standalone');assert.equal(am.name,'1560 알람');
+assert.ok(am.icons.some(i=>i.sizes==='512x512'&&/maskable/.test(i.purpose)));
+for(const i of am.icons) assert.ok(existsSync(root+'/'+i.src.slice(2)),i.src);
+assert.match(page,/<link rel="manifest" href="\.\/alarm\.webmanifest">/);
+assert.match(page,/id="installBtn"/);assert.match(page,/beforeinstallprompt/);
+const mm=JSON.parse(readFileSync(root+'/manifest.webmanifest','utf8'));
+assert.equal(mm.start_url,'./');assert.ok(mm.shortcuts.some(s=>s.url==='./alarm.html'));
 // The timetable keeps its side tools and gains one alarm shortcut.
 assert.equal((main.match(/id="alarmQuick" href="\.\/alarm\.html"/g)||[]).length,1);
 assert.match(main,/id="gpsQuick"[^>]*>🧭<\/button>\s*<a class="side-tool" id="alarmQuick"/);

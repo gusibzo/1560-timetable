@@ -7,8 +7,11 @@
 <meta name="format-detection" content="telephone=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<link rel="manifest" href="./manifest.webmanifest">
-<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
+<link rel="manifest" href="./alarm.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="./icons/alarm-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="./icons/alarm-apple-touch.png">
+<meta name="apple-mobile-web-app-title" content="1560 알람">
+<meta name="application-name" content="1560 알람">
 <title>1560 알람 · Rev.177</title>
 <style>
 :root{
@@ -123,6 +126,10 @@ a.row{color:inherit;text-decoration:none}
 .opt[aria-checked="true"]{color:var(--accent-text);font-weight:800}
 .opt[aria-checked="true"]::after{content:"✓";margin-left:auto}
 .opt.danger{color:var(--danger)}
+.sheet-text{margin:0 4px 14px;font-size:15px;line-height:1.65;color:var(--sub)}
+.sheet-text b{color:var(--text)}
+.sheet-text ol{padding-left:20px}
+.sheet-text li{margin:4px 0}
 
 /* editor */
 .editor{max-height:100dvh;height:100dvh;border-radius:0;padding-top:calc(14px + env(safe-area-inset-top))}
@@ -214,6 +221,7 @@ try{var s=JSON.parse(localStorage.getItem('bus1560.alarm.v1')||'{}').settings||{
       <button class="icon-btn" id="menuBtn" type="button" aria-label="더 보기 메뉴"><svg><use href="#i-kebab"/></svg></button>
     </div>
     <div class="next-head" aria-live="polite"><svg><use href="#i-alarm"/></svg><div><span class="big num" id="nextBig">--</span><span class="small" id="nextSmall"></span></div></div>
+    <div class="notice" id="installNotice" hidden><span>📲</span><span><b>바탕화면에 알람 아이콘 추가</b><br>휴대폰 바탕화면에서 ⏰ 아이콘을 누르면 바로 알람이 열립니다.</span><button type="button" id="installBtn">추가</button><button type="button" id="installLater" aria-label="나중에" style="background:var(--input);color:var(--sub)">✕</button></div>
     <div class="notice" id="soundNotice" hidden><span>🔈</span><span><b>소리 켜기</b><br>휴대폰 정책상 한 번 탭해야 알람 소리가 납니다.</span><button type="button" id="soundOn">탭하기</button></div>
     <div class="notice" id="keepNotice" hidden><span>📱</span><span><b>이 화면을 열어 두세요.</b><br>웹 알람은 페이지가 열려 있을 때 울립니다. 더보기 › 화면 켜짐 유지를 켜면 더 안전합니다.</span><button type="button" id="keepClose" aria-label="안내 닫기">확인</button></div>
     <div class="list" id="list"></div>
@@ -225,6 +233,7 @@ try{var s=JSON.parse(localStorage.getItem('bus1560.alarm.v1')||'{}').settings||{
     <div class="topbar"><a class="back-link" href="./">‹ 1560</a></div>
     <h2 class="sec-title">앱</h2>
     <div class="group">
+      <button class="row" type="button" id="installRow"><span>바탕화면에 추가<span class="desc">휴대폰 바탕화면에 ⏰ 알람 아이콘을 만듭니다.</span></span><span class="val" id="vInstall">추가</span></button>
       <button class="row" type="button" data-set="theme">테마<span class="val" id="vTheme"></span></button>
       <button class="row" type="button" data-set="controller">알람 컨트롤러<span class="val" id="vController"></span></button>
       <button class="row" type="button" data-set="weekStart">시작 요일<span class="val" id="vWeekStart"></span></button>
@@ -256,7 +265,7 @@ try{var s=JSON.parse(localStorage.getItem('bus1560.alarm.v1')||'{}').settings||{
 </div></nav>
 
 <div class="scrim" id="scrim"></div>
-<div class="sheet" id="choice" role="dialog" aria-modal="true" aria-labelledby="choiceTitle"><h2 id="choiceTitle"></h2><div id="choiceOpts"></div></div>
+<div class="sheet" id="choice" role="dialog" aria-modal="true" aria-labelledby="choiceTitle"><h2 id="choiceTitle"></h2><div id="choiceText" class="sheet-text" hidden></div><div id="choiceOpts"></div></div>
 
 <div class="sheet editor" id="editor" role="dialog" aria-modal="true" aria-label="알람 편집">
   <div class="ed-when"><span id="edWhen"></span><button class="cal" type="button" id="edCal" aria-label="날짜 선택"><svg><use href="#i-cal"/></svg></button><input type="date" id="edDate" style="position:absolute;opacity:0;width:1px;height:1px;pointer-events:none" tabindex="-1" aria-hidden="true"></div>
@@ -521,11 +530,13 @@ var AlarmCore = (function () {
     Object.keys(LABELS).forEach(function (k) { $('v' + k[0].toUpperCase() + k.slice(1)).textContent = LABELS[k][S()[k]]; });
     $('t24').setAttribute('aria-checked', S().use24);
     $('tWake').setAttribute('aria-checked', S().keepAwake);
+    $('vInstall').textContent = installed() ? '추가됨' : '추가';
     $('vNotify').textContent = !('Notification' in window) ? '지원 안 됨' : Notification.permission === 'granted' ? '허용됨' : Notification.permission === 'denied' ? '차단됨' : '허용하기';
   }
   function updateNotices() {
     var needSound = state.alarms.some(function (a) { return a.enabled; }) && (!ctx || ctx.state !== 'running');
     $('soundNotice').hidden = !needSound;
+    $('installNotice').hidden = installed() || S().hideInstallNotice;
     $('keepNotice').hidden = S().hideKeepNotice || !state.alarms.some(function (a) { return a.enabled; });
   }
   function renderAll() { renderList(); renderSettings(); updateNotices(); }
@@ -547,9 +558,10 @@ var AlarmCore = (function () {
   function openS(el) { closeS(); openSheet = el; $('scrim').classList.add('on'); el.classList.add('on'); }
   function closeS() { if (openSheet) openSheet.classList.remove('on'); openSheet = null; $('scrim').classList.remove('on'); stopPreview(); }
   $('scrim').addEventListener('click', closeS);
-  function choose(title, options, current) {
+  function choose(title, options, current, textHtml) {
     return new Promise(function (resolve) {
       $('choiceTitle').textContent = title;
+      $('choiceText').hidden = !textHtml; $('choiceText').innerHTML = textHtml || '';
       var box = $('choiceOpts'); box.innerHTML = '';
       options.forEach(function (o) {
         var b = document.createElement('button'); b.type = 'button'; b.className = 'opt' + (o.danger ? ' danger' : '');
@@ -740,6 +752,40 @@ var AlarmCore = (function () {
     save(); closeS(); ed = null; renderAll(); unlockAudio();
     if (t) toast(C.untilText(t - new Date()) + ' 후에 알람이 울립니다');
   });
+
+  /* ---------- home screen icon ---------- */
+  var installEvent = null;
+  function installed() {
+    try { return matchMedia('(display-mode: standalone)').matches || navigator.standalone === true || localStorage.getItem('bus1560.alarm.installed') === '1'; } catch (e) { return false; }
+  }
+  window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); installEvent = e; });
+  window.addEventListener('appinstalled', function () {
+    try { localStorage.setItem('bus1560.alarm.installed', '1'); } catch (e) {}
+    installEvent = null; renderAll(); toast('바탕화면에 ⏰ 알람 아이콘을 추가했습니다');
+  });
+  function addToHome() {
+    if (installEvent) {
+      var ev = installEvent; installEvent = null;
+      ev.prompt();
+      (ev.userChoice || Promise.resolve({})).then(function (r) {
+        if (r && r.outcome === 'accepted') { try { localStorage.setItem('bus1560.alarm.installed', '1'); } catch (e) {} renderAll(); }
+      });
+      return;
+    }
+    var ios = /iPhone|iPad|iPod/.test(navigator.userAgent), samsung = /SamsungBrowser/.test(navigator.userAgent);
+    var steps = ios
+      ? '<ol><li>Safari 아래쪽 <b>공유 버튼(□↑)</b>을 누릅니다.</li><li><b>홈 화면에 추가</b>를 누릅니다.</li><li>이름이 <b>1560 알람</b>인지 보고 <b>추가</b>를 누릅니다.</li></ol>'
+      : samsung
+        ? '<ol><li>삼성 인터넷 아래쪽 <b>메뉴(≡)</b>를 누릅니다.</li><li><b>현재 페이지 추가 › 홈 화면</b>을 누릅니다.</li><li><b>추가</b>를 누르면 바탕화면에 ⏰ 아이콘이 생깁니다.</li></ol>'
+        : '<ol><li>크롬 오른쪽 위 <b>메뉴(⋮)</b>를 누릅니다.</li><li><b>홈 화면에 추가</b>(또는 <b>앱 설치</b>)를 누릅니다.</li><li><b>추가/설치</b>를 누르면 바탕화면에 ⏰ 아이콘이 생깁니다.</li></ol>';
+    choose('바탕화면에 알람 추가', [{ label: '알겠습니다', value: 'ok' }, { label: '이미 추가했어요', value: 'done' }], undefined,
+      steps + '<p style="margin-top:8px">아이콘을 누르면 1560 알람이 바로 열립니다.</p>').then(function (v) {
+      if (v === 'done') { try { localStorage.setItem('bus1560.alarm.installed', '1'); } catch (e) {} renderAll(); }
+    });
+  }
+  $('installBtn').addEventListener('click', addToHome);
+  $('installRow').addEventListener('click', addToHome);
+  $('installLater').addEventListener('click', function () { S().hideInstallNotice = true; save(); updateNotices(); });
 
   /* ---------- settings ---------- */
   document.querySelectorAll('[data-set]').forEach(function (row) {

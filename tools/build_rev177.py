@@ -15,6 +15,26 @@ finally:
 alarm=Path(__file__).with_name('rev177_alarm.html').read_text(encoding='utf-8')
 (root/'alarm.html').write_text(alarm,encoding='utf-8')
 
+# The alarm page installs as its own home-screen app ("1560 알람").
+import json
+alarm_manifest={
+    'id':'./alarm.html','name':'1560 알람','short_name':'1560 알람',
+    'start_url':'./alarm.html','scope':'./alarm.html','display':'standalone',
+    'background_color':'#000000','theme_color':'#000000','lang':'ko',
+    'icons':[
+        {'src':'./icons/alarm-192.png','sizes':'192x192','type':'image/png','purpose':'any'},
+        {'src':'./icons/alarm-512.png','sizes':'512x512','type':'image/png','purpose':'any maskable'},
+    ],
+}
+(root/'alarm.webmanifest').write_text(json.dumps(alarm_manifest,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+# Long-pressing the installed 1560 timetable icon also offers the alarm.
+manifest_path=root/'manifest.webmanifest'
+manifest=json.loads(manifest_path.read_text(encoding='utf-8'))
+manifest['shortcuts']=[s for s in manifest.get('shortcuts',[]) if s.get('url')!='./alarm.html']+[
+    {'name':'1560 알람','short_name':'알람','url':'./alarm.html',
+     'icons':[{'src':'./icons/alarm-192.png','sizes':'192x192','type':'image/png'}]}]
+manifest_path.write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+
 index=root/'index.html'
 html=index.read_text(encoding='utf-8')
 anchor='<button class="side-tool" id="gpsQuick" type="button" aria-label="지도와 속도계 기능 열기" title="지도·속도계">🧭</button>'
