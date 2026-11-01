@@ -10,7 +10,9 @@ assert.equal((main.match(/id="alarmQuick" href="\.\/alarm\.html"/g)||[]).length,
 assert.match(main,/id="gpsQuick"[^>]*>🧭<\/button>\s*<a class="side-tool" id="alarmQuick"/);
 assert.match(sw,/notificationclick/);
 assert.match(page,/<title>1560 알람/);
-for(const tab of ['alarm','clock','more']) assert.match(page,new RegExp(`data-tab="${tab}"`));
+for(const tab of ['alarm','more']) assert.match(page,new RegExp(`data-tab="${tab}"`));
+// Alarm only: no clock tab.
+assert.doesNotMatch(page,/data-tab="clock"|id="view-clock"/);
 const core=page.match(/<script id="alarm-core">([\s\S]*?)<\/script>/)[1];
 const ctx={};vm.runInNewContext(core+';this.C=AlarmCore;',ctx);
 const C=ctx.C;
