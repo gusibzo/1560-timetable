@@ -11,6 +11,7 @@ const now=new Date(2026,10,2,12,48,0); // Monday, local time, independent of hos
 const alarm={id:'one',h:15,m:5,enabled:true,days:[],date:null};
 assert.equal(C.remainingText(alarm,now),'2시간 17분 남음');
 assert.equal(C.remainingText({...alarm,h:18,m:50},now),'6시간 2분 남음');
+assert.equal(C.remainingText(alarm,new Date(2026,10,2,12,48,1)),C.untilText(new Date(2026,10,2,15,5)-new Date(2026,10,2,12,48,1))+' 남음','Card and next-alarm header must use the same minute rounding');
 assert.equal(C.remainingText({...alarm,enabled:false},now),'알람 꺼짐');
 assert.equal(C.remainingText({...alarm,date:'2026-11-01'},now),'지난 알람');
 assert.equal(C.remainingText({...alarm,h:4,m:45},now),'15시간 57분 남음','Past time without a date means tomorrow');

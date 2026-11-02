@@ -398,9 +398,9 @@ var AlarmCore = (function () {
     if (!a.enabled) return '알람 꺼짐';
     var next = nextTrigger(a, now);
     if (!next) return '지난 알람';
-    var seconds = Math.max(1, Math.ceil((next.getTime() - now.getTime()) / 1000));
-    if (seconds < 60) return seconds + '초 남음';
-    var minutes = Math.ceil(seconds / 60);
+    var ms = next.getTime() - now.getTime();
+    if (ms < 60000) return Math.max(1, Math.ceil(ms / 1000)) + '초 남음';
+    var minutes = Math.floor(ms / 60000);
     var days = Math.floor(minutes / 1440), hours = Math.floor((minutes % 1440) / 60), mins = minutes % 60;
     var parts = [];
     if (days) parts.push(days + '일');
