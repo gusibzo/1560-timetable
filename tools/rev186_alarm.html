@@ -1,0 +1,1252 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="format-detection" content="telephone=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="./alarm.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="./icons/alarm-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="./icons/alarm-apple-touch.png">
+<meta name="apple-mobile-web-app-title" content="1560 알람">
+<meta name="application-name" content="1560 알람">
+<title>1560 알람 · Rev.186</title>
+<style>
+:root{
+  --bg:#000;--card:#1a1a1c;--card-line:#29292c;--card-off:#141416;--text:#f4f4f5;--sub:#a3a3a8;--dim:#7a7a80;
+  --accent:#ffb400;--accent-text:#ffb400;--on-accent:#1b1300;--nav:#1c1c1e;--nav-line:#2a2a2e;--sheet:#1d1d20;
+  --knob:#8e8e93;--danger:#ff5a4f;--input:#2a2a2e;
+  color-scheme:dark;
+  font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;
+}
+:root[data-theme="light"]{
+  --bg:#f3f3f5;--card:#fff;--card-line:#e3e3e8;--card-off:#fafafa;--text:#121214;--sub:#5f5f66;--dim:#8f8f96;
+  --accent:#ffb400;--accent-text:#b77d00;--on-accent:#1b1300;--nav:#fff;--nav-line:#e3e3e8;--sheet:#fff;
+  --knob:#b8b8be;--danger:#d93025;--input:#ececf0;color-scheme:light;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--text);-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
+body{min-height:100vh;min-height:100dvh;overscroll-behavior-y:none}
+button,input,select{font:inherit;color:inherit}
+button{-webkit-appearance:none;appearance:none;background:none;border:0;cursor:pointer;touch-action:manipulation}
+.app{max-width:520px;margin:0 auto;padding:calc(10px + env(safe-area-inset-top)) 16px calc(120px + env(safe-area-inset-bottom))}
+.view{display:none}.view.on{display:block}
+.num{font-variant-numeric:tabular-nums;letter-spacing:-.5px}
+
+/* top bar */
+.topbar{display:flex;justify-content:flex-end;align-items:center;gap:6px;height:52px}
+.icon-btn{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;color:var(--accent-text)}
+.icon-btn:active{background:var(--input)}
+.icon-btn svg{width:26px;height:26px}
+.back-link{margin-right:auto;display:inline-flex;align-items:center;gap:4px;color:var(--sub);text-decoration:none;font-size:14px;font-weight:700;padding:8px 4px}
+.next-head{display:flex;align-items:center;gap:12px;margin:28px 4px 26px;min-height:40px}
+.next-head svg{width:34px;height:34px;flex:0 0 auto;color:var(--sub)}
+.next-head .big{font-size:24px;font-weight:700}
+.next-head .small{display:block;font-size:13px;color:var(--sub);font-weight:600;margin-top:2px}
+.notice{display:flex;gap:10px;align-items:flex-start;margin:0 0 14px;padding:12px 14px;border-radius:16px;background:var(--card);border:1px solid var(--card-line);font-size:13px;line-height:1.45;color:var(--sub)}
+.notice b{color:var(--text)}
+.notice button{margin-left:auto;flex:0 0 auto;padding:7px 11px;border-radius:999px;background:var(--accent);color:var(--on-accent);font-weight:800;font-size:13px}
+.notice[hidden]{display:none}
+
+/* alarm cards */
+.list{display:flex;flex-direction:column;gap:12px}
+.card{position:relative;display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:18px 20px 16px 26px;border-radius:26px;background:var(--card);border:1px solid var(--card-line);user-select:none;-webkit-user-select:none;cursor:pointer}
+.card:active{filter:brightness(1.12)}
+.card .label{grid-column:1;display:flex;align-items:center;gap:9px;font-size:16px;font-weight:700;color:var(--sub);min-height:22px;overflow:hidden}
+.card .label span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .label svg{width:17px;height:17px;flex:0 0 auto}
+.card .time{grid-column:1;font-size:44px;line-height:1.08;font-weight:600;color:var(--text);display:flex;align-items:baseline;gap:6px}
+.card .time small{font-size:18px;font-weight:700;color:inherit}
+.card .when{grid-column:1;display:flex;align-items:center;gap:9px;margin-top:6px;font-size:17px;font-weight:700;color:var(--sub);flex-wrap:wrap;min-height:30px}
+.chip{display:inline-block;padding:3px 9px;border-radius:7px;background:var(--accent);color:var(--on-accent);font-weight:800}
+.days{display:flex;gap:7px}
+.days i{font-style:normal;color:var(--dim);font-weight:700}
+.days i.on{color:var(--accent-text)}
+.days i.sun.on{color:#ff6b62}
+.days i.sat.on{color:#5fa8ff}
+.card.off .time,.card.off .when{color:var(--dim)}
+.card.off .chip{background:var(--input);color:var(--dim)}
+.card .remaining{grid-column:1;margin-top:3px;min-height:22px;font-size:15px;line-height:1.5;font-weight:700;color:var(--accent-text);font-variant-numeric:tabular-nums}
+.card.off .remaining{color:var(--dim)}
+.card .side{grid-column:2;grid-row:1/5;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding-top:2px}
+.kebab{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;color:var(--sub)}
+.kebab svg{width:22px;height:22px}
+.kebab:active{background:var(--input)}
+.snoozed{color:var(--accent-text);font-size:13px;font-weight:800}
+.card .pick{display:none;position:absolute;left:-8px;top:50%;transform:translateY(-50%);width:26px;height:26px;border-radius:50%;border:2px solid var(--dim);background:var(--bg)}
+.selecting .card{padding-left:34px}
+.selecting .card .pick{display:block;left:8px}
+.selecting .card.picked .pick{background:var(--accent);border-color:var(--accent);box-shadow:inset 0 0 0 4px var(--bg)}
+.selecting .side{visibility:hidden}
+.empty{padding:60px 20px;text-align:center;color:var(--sub);font-size:15px;line-height:1.6}
+
+/* toggle */
+.tg{position:relative;width:62px;height:36px;flex:0 0 auto;border-radius:999px;border:3px solid var(--knob);background:transparent;transition:background .18s,border-color .18s}
+.tg::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:var(--knob);transition:transform .18s,background .18s}
+.tg[aria-checked="true"]{background:var(--accent);border-color:var(--accent)}
+.tg[aria-checked="true"]::after{transform:translateX(26px);background:#fff}
+
+/* fab */
+.fab{position:fixed;z-index:30;left:50%;transform:translateX(-50%);bottom:calc(112px + env(safe-area-inset-bottom));width:68px;height:68px;border-radius:50%;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;box-shadow:0 8px 22px rgba(0,0,0,.45)}
+.fab svg{width:34px;height:34px}
+.fab:active{transform:translateX(-50%) scale(.94)}
+.fab[hidden]{display:none}
+.selbar{position:fixed;z-index:31;left:0;right:0;bottom:calc(92px + env(safe-area-inset-bottom));display:none;justify-content:center;gap:10px;padding:0 16px}
+.selecting~.selbar,.selbar.on{display:flex}
+.pill{padding:13px 20px;border-radius:999px;background:var(--nav);border:1px solid var(--nav-line);font-weight:800;font-size:15px}
+.pill.warn{background:var(--danger);border-color:var(--danger);color:#fff}
+.pill.main{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+
+/* bottom nav */
+.nav{position:fixed;z-index:40;left:0;right:0;bottom:0;padding:10px 0 calc(10px + env(safe-area-inset-bottom));background:var(--nav);border-top:1px solid var(--nav-line);border-radius:30px 30px 0 0;display:flex;justify-content:center}
+.nav-in{width:100%;max-width:520px;display:grid;grid-template-columns:repeat(2,1fr)}
+.nav button{display:flex;flex-direction:column;align-items:center;gap:6px;padding:6px 0;color:var(--dim);font-size:15px;font-weight:800}
+.nav button svg{width:34px;height:34px}
+.nav button[aria-selected="true"]{color:var(--accent-text)}
+
+/* more tab */
+.sec-title{margin:30px 8px 12px;font-size:21px;font-weight:800;color:var(--accent-text)}
+.group{border-radius:26px;background:var(--card);border:1px solid var(--card-line);overflow:hidden}
+.row{display:flex;align-items:center;gap:12px;width:100%;min-height:68px;padding:12px 24px;text-align:left;font-size:18px;font-weight:600}
+.row:active{background:var(--input)}
+.row .val{margin-left:auto;color:var(--accent-text);font-weight:800;font-size:17px;text-align:right}
+.row .desc{display:block;font-size:13px;color:var(--sub);font-weight:500;margin-top:3px;line-height:1.4}
+.row .tg{margin-left:auto}
+a.row{color:inherit;text-decoration:none}
+.foot{margin:22px 8px 0;font-size:12.5px;line-height:1.6;color:var(--dim)}
+
+/* sheets */
+.scrim{position:fixed;inset:0;z-index:100;display:none;background:rgba(0,0,0,.55)}
+.scrim.on{display:block}
+.sheet{position:fixed;z-index:101;left:50%;bottom:0;transform:translate(-50%,110%);width:100%;max-width:520px;max-height:94dvh;overflow-y:auto;padding:22px 20px calc(20px + env(safe-area-inset-bottom));border-radius:28px 28px 0 0;background:var(--sheet);transition:transform .22s ease;overscroll-behavior:contain}
+.sheet.on{transform:translate(-50%,0)}
+.sheet h2{font-size:19px;font-weight:800;margin:0 4px 14px}
+.opt{display:flex;align-items:center;width:100%;min-height:54px;padding:10px 14px;border-radius:14px;font-size:17px;font-weight:600;text-align:left}
+.opt:active{background:var(--input)}
+.opt[aria-checked="true"]{color:var(--accent-text);font-weight:800}
+.opt[aria-checked="true"]::after{content:"✓";margin-left:auto}
+.opt.danger{color:var(--danger)}
+.sheet-text{margin:0 4px 14px;font-size:15px;line-height:1.65;color:var(--sub)}
+.sheet-text b{color:var(--text)}
+.sheet-text ol{padding-left:20px}
+.sheet-text li{margin:4px 0}
+
+/* editor */
+.editor{max-height:100dvh;height:100dvh;border-radius:0;padding-top:calc(14px + env(safe-area-inset-top))}
+.ed-when{display:flex;align-items:center;gap:10px;margin:4px 6px 0;font-size:16px;font-weight:700;color:var(--sub)}
+.ed-when .cal{margin-left:auto;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:var(--accent-text)}
+.ed-when .cal svg{width:26px;height:26px}
+.wheels{position:relative;display:flex;justify-content:center;align-items:center;gap:4px;margin:10px 0 6px;height:192px}
+.wheels::before{content:"";position:absolute;left:8%;right:8%;top:68px;height:56px;border-radius:14px;background:var(--input);z-index:0}
+.wheel{position:relative;z-index:1;height:192px;width:88px;overflow-y:scroll;scroll-snap-type:y mandatory;scrollbar-width:none;-webkit-mask-image:linear-gradient(transparent,#000 30%,#000 70%,transparent);mask-image:linear-gradient(transparent,#000 30%,#000 70%,transparent)}
+.wheel::-webkit-scrollbar{display:none}
+.wheel div{height:56px;display:grid;place-items:center;scroll-snap-align:center;font-size:40px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--text)}
+.wheel.ampm{width:76px}
+.wheel.ampm div{font-size:22px;font-weight:700}
+.wheel .pad{height:68px;scroll-snap-align:none}
+.colon{position:relative;z-index:1;font-size:40px;font-weight:600;padding-bottom:6px}
+.wheels[hidden],.numeric-time[hidden]{display:none!important}
+.numeric-time{padding:18px 0 4px;text-align:center}
+.numeric-time>p{font-size:13px;color:var(--sub);margin-bottom:10px}
+.numeric-fields{display:flex;justify-content:center;align-items:center;gap:12px}
+.numeric-fields label{display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(--sub)}
+.numeric-fields input{width:100px;max-width:28vw;padding:10px 4px;border:2px solid transparent;border-radius:16px;background:var(--input);color:var(--text);font-size:42px;font-weight:700;text-align:center;font-variant-numeric:tabular-nums}
+.numeric-fields input:focus{outline:none;border-color:var(--accent)}
+.numeric-fields>span{font-size:36px;padding-top:20px}
+.time-input-error{font-size:13px;color:var(--danger);margin:8px 0 0;min-height:18px}
+.time-entry-switch{text-align:center;margin:6px 0 14px}
+.time-entry-switch button{padding:8px 16px;min-height:40px;border:1px solid var(--card-line);border-radius:999px;color:var(--accent-text);font-size:14px;font-weight:700}
+#edPreview[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
+.sound-credit{display:block;padding:0 18px 10px;text-align:right;font-size:12px;color:var(--sub)}
+.sound-status{padding:0 18px 8px;color:var(--accent-text);font-size:13px}.sound-status:empty{display:none}
+.volume-label{display:flex;justify-content:space-between;align-items:center;padding:12px 18px 0;font-size:16px;font-weight:700}
+.volume-label output{color:var(--accent-text);font-variant-numeric:tabular-nums}
+.volume-control{padding:8px 18px 4px;display:flex;gap:12px;align-items:center}.volume-control input{width:100%;accent-color:var(--accent)}
+.volume-presets,.output-actions{display:flex;flex-wrap:wrap;gap:8px;padding:8px 18px 12px}
+.volume-presets button,.output-actions button{padding:9px 12px;border:1px solid var(--card-line);border-radius:12px;font-size:13px;font-weight:700;color:var(--accent-text);min-height:40px}
+.volume-note,.output-status{padding:0 18px 12px;font-size:13px;line-height:1.5;color:var(--sub)}
+.speaker-guide{margin:0 14px 14px;padding:14px;border-radius:14px;background:var(--input);font-size:14px;line-height:1.65}
+.speaker-guide[hidden]{display:none}.speaker-guide ol{padding-left:21px}.speaker-guide a{color:var(--accent-text)}
+.quick{display:flex;gap:8px;justify-content:center;margin:2px 0 16px;flex-wrap:wrap}
+.quick button{padding:8px 13px;border-radius:999px;background:var(--input);font-size:14px;font-weight:800}
+.panel{border-radius:22px;background:var(--card);border:1px solid var(--card-line);padding:6px 0;margin-bottom:12px}
+.daypick{display:flex;justify-content:space-between;padding:12px 16px}
+.daypick button{width:40px;height:40px;border-radius:50%;font-size:16px;font-weight:800;color:var(--sub)}
+.daypick button.sun{color:#ff6b62}.daypick button.sat{color:#5fa8ff}
+.daypick button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
+.daypresets{display:flex;gap:8px;padding:0 16px 12px;flex-wrap:wrap}
+.daypresets button{padding:6px 12px;border-radius:999px;border:1px solid var(--card-line);font-size:13px;font-weight:800;color:var(--sub)}
+.field{display:flex;align-items:center;gap:12px;padding:12px 18px;min-height:60px}
+.field+.field{border-top:1px solid var(--card-line)}
+.field label,.field .lab{font-size:16px;font-weight:700;flex:0 0 auto}
+.field .lab small{display:block;font-size:13px;color:var(--accent-text);font-weight:700;margin-top:2px}
+.field input[type=text]{flex:1;min-width:0;padding:10px 12px;border-radius:12px;border:0;background:var(--input);font-size:16px}
+.field select{margin-left:auto;padding:8px 10px;border-radius:12px;border:0;background:var(--input);font-size:15px;font-weight:700;max-width:58%}
+.field .tg{margin-left:auto}
+.field input[type=range]{flex:1;accent-color:var(--accent)}
+.labels{display:flex;gap:6px;flex-wrap:wrap;padding:0 18px 12px}
+.labels button{padding:5px 10px;border-radius:999px;background:var(--input);font-size:13px;font-weight:700;color:var(--sub)}
+.ed-actions{position:sticky;bottom:calc(-20px - env(safe-area-inset-bottom));display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px -20px calc(-20px - env(safe-area-inset-bottom));padding:12px 20px calc(14px + env(safe-area-inset-bottom));background:var(--sheet)}
+.ed-actions button{padding:15px;border-radius:999px;font-size:17px;font-weight:800;background:var(--input)}
+.ed-actions .save{background:var(--accent);color:var(--on-accent)}
+.ed-del{display:block;margin:4px auto 0;padding:10px 16px;color:var(--danger);font-weight:800}
+.ed-del[hidden]{display:none}
+
+/* ringing */
+.ring{position:fixed;inset:0;z-index:200;display:none;flex-direction:column;align-items:center;justify-content:space-between;padding:calc(60px + env(safe-area-inset-top)) 24px calc(46px + env(safe-area-inset-bottom));background:radial-gradient(circle at 50% 28%,#3a2a00 0%,#000 62%);color:#fff;text-align:center;touch-action:none}
+.ring.on{display:flex}
+.ring .rl{font-size:22px;font-weight:800;color:#ffd36a;min-height:28px}
+.ring .rt{font-size:clamp(72px,24vw,112px);font-weight:600;line-height:1;margin-top:12px}
+.ring .rd{margin-top:12px;font-size:18px;color:#c9c9cf;font-weight:700}
+.ring .late{margin-top:8px;font-size:14px;color:#ffb4ad;font-weight:700}
+.snooze-btn{padding:16px 32px;border-radius:999px;background:#ffb400;color:#1b1300;font-size:19px;font-weight:900}
+.snooze-btn[hidden]{display:none}
+.swipe-zone{position:relative;width:260px;height:260px;display:grid;place-items:center}
+.swipe-ring{position:absolute;inset:0;border-radius:50%;border:2px dashed rgba(255,255,255,.28);transform:scale(.4);opacity:0;transition:transform .15s,opacity .15s}
+.swipe-knob{position:relative;width:96px;height:96px;border-radius:50%;background:#fff;color:#111;display:grid;place-items:center;box-shadow:0 0 0 12px rgba(255,255,255,.12);animation:pulse 1.4s infinite;touch-action:none}
+.swipe-knob svg{width:40px;height:40px}
+.swipe-hint{margin-top:14px;font-size:14px;color:#c9c9cf;font-weight:700}
+.dismiss-btn{padding:18px 54px;border-radius:999px;background:#fff;color:#111;font-size:20px;font-weight:900}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 10px rgba(255,255,255,.14)}50%{box-shadow:0 0 0 24px rgba(255,255,255,.04)}}
+@media (prefers-reduced-motion:reduce){.swipe-knob{animation:none}.sheet{transition:none}}
+
+.toast{position:fixed;z-index:300;left:50%;bottom:calc(200px + env(safe-area-inset-bottom));transform:translateX(-50%);max-width:88vw;padding:12px 18px;border-radius:14px;background:#3a3a3e;color:#fff;font-size:15px;font-weight:700;text-align:center;opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.on{opacity:1}
+@media (max-width:360px){.app{padding-left:12px;padding-right:12px}.card{padding-left:20px}.card .time{font-size:38px}.days{gap:5px}.wheel{width:74px}}
+</style>
+<script>
+/* Apply the saved theme before first paint. */
+try{var s=JSON.parse(localStorage.getItem('bus1560.alarm.v1')||'{}').settings||{};var th=s.theme||'dark';if(th==='system')th=matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';document.documentElement.dataset.theme=th;}catch(e){}
+</script>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-alarm" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="7.5"/><path d="M12 9.2V13l2.6 2"/><path d="M4.2 5.6 6.8 3.3M19.8 5.6l-2.6-2.3"/></g></symbol>
+  <symbol id="i-alarm-fill" viewBox="0 0 24 24"><path fill="currentColor" d="M12 4.5a8.5 8.5 0 1 1 0 17 8.5 8.5 0 0 1 0-17Zm-.9 4v5l3.4 2.1.9-1.5-2.6-1.6V8.5h-1.7Z"/><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M3.6 5.6 6.4 3.2M20.4 5.6l-2.8-2.4"/></symbol>
+  <symbol id="i-add-alarm" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="13" r="7.2"/><path d="M12 9.8v6.4M8.8 13h6.4M4.2 5.6 6.8 3.3M19.8 5.6l-2.6-2.3"/></g></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><g fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></g></symbol>
+  <symbol id="i-kebab" viewBox="0 0 24 24"><g fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></g></symbol>
+  <symbol id="i-sort" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" d="M3 6h18M3 12h12M3 18h6"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M4 6h16M9 6V3.8h6V6"/><rect x="6" y="6" width="12" height="15" rx="1.5"/></g></symbol>
+  <symbol id="i-tag" viewBox="0 0 24 24"><path fill="currentColor" d="M3 6.5A2.5 2.5 0 0 1 5.5 4h10.2c.7 0 1.4.3 1.9.8l4.1 5.1c.4.6.4 1.4 0 2l-4.1 5.3c-.5.5-1.2.8-1.9.8H5.5A2.5 2.5 0 0 1 3 15.5Z"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></g></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" d="M6 6l12 12M18 6 6 18"/></symbol>
+</svg>
+
+<div class="app" id="app">
+  <!-- 알람 -->
+  <section class="view" id="view-alarm" aria-label="알람">
+    <div class="topbar">
+      <a class="back-link" href="./" aria-label="1560 시간표로 돌아가기">‹ 1560</a>
+      <button class="icon-btn" id="sortBtn" type="button" aria-label="정렬"><svg><use href="#i-sort"/></svg></button>
+      <button class="icon-btn" id="trashBtn" type="button" aria-label="알람 선택 삭제"><svg><use href="#i-trash"/></svg></button>
+      <button class="icon-btn" id="menuBtn" type="button" aria-label="더 보기 메뉴"><svg><use href="#i-kebab"/></svg></button>
+    </div>
+    <div class="next-head" aria-live="polite"><svg><use href="#i-alarm"/></svg><div><span class="big num" id="nextBig">--</span><span class="small" id="nextSmall"></span></div></div>
+    <div class="notice" id="installNotice" hidden><span>📲</span><span><b>바탕화면에 알람 아이콘 추가</b><br>휴대폰 바탕화면에서 ⏰ 아이콘을 누르면 바로 알람이 열립니다.</span><button type="button" id="installBtn">추가</button><button type="button" id="installLater" aria-label="나중에" style="background:var(--input);color:var(--sub)">✕</button></div>
+    <div class="notice" id="soundNotice" hidden><span>🔈</span><span><b>소리 켜기</b><br>휴대폰 정책상 한 번 탭해야 알람 소리가 납니다.</span><button type="button" id="soundOn">탭하기</button></div>
+    <div class="notice" id="keepNotice" hidden><span>📱</span><span><b>이 화면을 열어 두세요.</b><br>웹 알람은 페이지가 열려 있을 때 울립니다. 더보기 › 화면 켜짐 유지를 켜면 더 안전합니다.</span><button type="button" id="keepClose" aria-label="안내 닫기">확인</button></div>
+    <div class="list" id="list"></div>
+  </section>
+
+
+  <!-- 더보기 -->
+  <section class="view" id="view-more" aria-label="더보기">
+    <div class="topbar"><a class="back-link" href="./">‹ 1560</a></div>
+    <h2 class="sec-title">앱</h2>
+    <div class="group">
+      <button class="row" type="button" id="installRow"><span>바탕화면에 추가<span class="desc">휴대폰 바탕화면에 ⏰ 알람 아이콘을 만듭니다.</span></span><span class="val" id="vInstall">추가</span></button>
+      <button class="row" type="button" data-set="theme">테마<span class="val" id="vTheme"></span></button>
+      <button class="row" type="button" data-set="controller">알람 컨트롤러<span class="val" id="vController"></span></button>
+      <button class="row" type="button" data-set="weekStart">시작 요일<span class="val" id="vWeekStart"></span></button>
+      <div class="row">24시간 형식<button class="tg" type="button" role="switch" id="t24" aria-label="24시간 형식"></button></div>
+      <div class="row"><span>화면 켜짐 유지<span class="desc">알람 화면을 연 동안 화면이 꺼지지 않게 합니다.</span></span><button class="tg" type="button" role="switch" id="tWake" aria-label="화면 켜짐 유지"></button></div>
+      <button class="row" type="button" id="notifyBtn"><span>알림 권한<span class="desc">다른 앱을 보는 중에도 알림을 띄웁니다.</span></span><span class="val" id="vNotify"></span></button>
+    </div>
+    <h2 class="sec-title">기기 변경</h2>
+    <div class="group">
+      <button class="row" type="button" id="backupBtn"><span>백업<span class="desc">알람과 설정을 파일로 저장</span></span></button>
+      <button class="row" type="button" id="restoreBtn"><span>복원<span class="desc">백업 파일에서 불러오기</span></span></button>
+      <input type="file" id="restoreFile" accept="application/json,.json" hidden>
+    </div>
+    <h2 class="sec-title">정보</h2>
+    <div class="group">
+      <a class="row" href="./">1560 시간표로 돌아가기</a>
+      <button class="row" type="button" id="testBtn">알람 소리 미리 듣기<span class="val">▶</span></button>
+    </div>
+    <p class="foot">웹 알람은 이 페이지가 열려 있을 때 울립니다(브라우저를 완전히 닫거나 휴대폰이 탭을 정지하면 울리지 않을 수 있습니다). 출근처럼 중요한 알람은 휴대폰 기본 시계 앱 알람과 함께 사용하세요. 모든 데이터는 이 휴대폰에만 저장됩니다.</p>
+  </section>
+</div>
+
+<button class="fab" id="fab" type="button" aria-label="알람 추가"><svg><use href="#i-add-alarm"/></svg></button>
+<div class="selbar" id="selbar"><button class="pill" type="button" id="selAll">모두 선택</button><button class="pill warn" type="button" id="selDel">삭제</button><button class="pill" type="button" id="selCancel">취소</button></div>
+
+<nav class="nav" aria-label="하단 탭"><div class="nav-in" role="tablist">
+  <button type="button" role="tab" data-tab="alarm"><svg><use href="#i-alarm-fill"/></svg>알람</button>
+  <button type="button" role="tab" data-tab="more"><svg><use href="#i-more"/></svg>더보기</button>
+</div></nav>
+
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="choice" role="dialog" aria-modal="true" aria-labelledby="choiceTitle"><h2 id="choiceTitle"></h2><div id="choiceText" class="sheet-text" hidden></div><div id="choiceOpts"></div></div>
+
+<div class="sheet editor" id="editor" role="dialog" aria-modal="true" aria-label="알람 편집">
+  <div class="ed-when"><span id="edWhen"></span><button class="cal" type="button" id="edCal" aria-label="날짜 선택"><svg><use href="#i-cal"/></svg></button><input type="date" id="edDate" style="position:absolute;opacity:0;width:1px;height:1px;pointer-events:none" tabindex="-1" aria-hidden="true"></div>
+  <div class="wheels" id="wheels" hidden></div>
+  <div class="numeric-time" id="edNumbers">
+    <p>숫자로 직접 입력 · 24시간</p>
+    <div class="numeric-fields">
+      <label>시 (00~23)<input id="edHour" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" autocomplete="off" enterkeyhint="next" aria-label="알람 시 (0~23)" aria-describedby="edTimeError"></label>
+      <span aria-hidden="true">:</span>
+      <label>분 (00~59)<input id="edMinute" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" autocomplete="off" enterkeyhint="done" aria-label="알람 분 (0~59)" aria-describedby="edTimeError"></label>
+    </div>
+    <p id="edTimeError" class="time-input-error" role="alert"></p>
+  </div>
+  <div class="time-entry-switch"><button type="button" id="edTimeMode">↕ 돌려서 선택</button></div>
+  <div class="quick" id="quick"><button type="button" data-add="1">+1분</button><button type="button" data-add="5">+5분</button><button type="button" data-add="10">+10분</button><button type="button" data-add="30">+30분</button><button type="button" data-add="60">+1시간</button></div>
+  <div class="panel">
+    <div class="daypick" id="daypick"></div>
+    <div class="daypresets"><button type="button" data-days="1,2,3,4,5">평일</button><button type="button" data-days="0,6">주말</button><button type="button" data-days="0,1,2,3,4,5,6">매일</button><button type="button" data-days="">반복 안 함</button><button type="button" id="clearDate" hidden>날짜 지우기</button></div>
+  </div>
+  <div class="panel">
+    <div class="field"><label for="edLabel">알람 이름</label><input type="text" id="edLabel" maxlength="40" placeholder="예: 평일 8번, 집출" autocomplete="off"></div>
+    <div class="labels" id="labelSugg"></div>
+  </div>
+  <div class="panel">
+    <div class="field"><span class="lab">알람음</span><select id="edSound" aria-label="알람음"></select><button type="button" class="kebab" id="edPreview" aria-label="알람음 미리 듣기" aria-pressed="false">▶</button></div>
+    <p class="sound-status" id="edSoundStatus" role="status" aria-live="polite"></p>
+    <a class="sound-credit" href="./audio/alarms/credits.html" target="_blank" rel="noopener">동물 소리 출처</a>
+    <label class="volume-label" for="edVol">음량 강화 <output id="edVolValue" for="edVol">200%</output></label>
+    <div class="volume-control"><input type="range" id="edVol" min="10" max="300" step="5" aria-label="음량"></div>
+    <div class="volume-presets"><button type="button" data-volume="100">기본 100%</button><button type="button" data-volume="200">크게 200%</button><button type="button" data-volume="300">아주 크게 300%</button></div>
+    <p class="volume-note">100%는 기본 크기입니다. 휴대폰의 미디어 음량도 함께 올려 주세요.</p>
+    <div class="field"><span class="lab">점점 크게<small>30초 동안 선택한 음량까지 커짐</small></span><button class="tg" type="button" role="switch" id="edRamp" aria-label="점점 크게"></button></div>
+    <div class="field"><span class="lab">진동</span><button class="tg" type="button" role="switch" id="edVib" aria-label="진동"></button></div>
+  </div>
+  <div class="panel">
+    <div class="field"><label for="edOutput" class="lab">소리 출력<small>모든 알람</small></label><select id="edOutput" aria-label="소리 출력 기기"><option value="">휴대폰 설정 (자동)</option></select></div>
+    <div class="output-actions"><button type="button" id="outputChoose">출력 기기 선택</button><button type="button" id="speakerHelp" aria-expanded="false" aria-controls="speakerGuide">휴대폰 스피커 설정 방법</button></div>
+    <p class="output-status" id="outputStatus" role="status">휴대폰의 ‘미디어 출력’ 설정을 따릅니다.</p>
+    <div class="speaker-guide" id="speakerGuide" hidden>
+      <b>삼성폰에서 휴대폰 스피커로 듣기</b>
+      <ol><li>화면 오른쪽 위를 내려 <b>미디어 출력</b>을 여세요.</li><li><b>이 휴대전화</b>를 선택하세요.</li></ol>
+      <p>다른 소리는 블루투스에 두고 이 알람만 휴대폰으로 들으려면:</p>
+      <ol><li><b>설정 → 소리 및 진동 → 앱 소리 분리 재생</b>을 켜세요.</li><li>이 알람을 여는 앱(Chrome 또는 삼성 인터넷)을 선택하세요.</li><li>오디오 기기를 <b>휴대전화</b>로 선택하세요. 기본 미디어 출력은 블루투스에 두세요.</li></ol>
+      <p>출력 기기가 목록에 나오지 않으면 휴대폰 설정에서 선택해 주세요. 웹앱이 휴대폰의 출력이나 시스템 음량을 강제로 바꿀 수는 없습니다.</p>
+      <a href="https://www.samsung.com/uk/support/mobile-devices/useful-audio-settings-on-the-galaxy-phone-including-separate-app-sound/" target="_blank" rel="noopener">삼성 공식 설정 안내</a>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="field"><span class="lab">다시 알림<small id="edSnoozeSum"></small></span><button class="tg" type="button" role="switch" id="edSnooze" aria-label="다시 알림"></button></div>
+    <div class="field" id="snoozeOpts"><select id="edSnoozeMin" aria-label="다시 알림 간격"><option value="3">3분</option><option value="5">5분</option><option value="10">10분</option><option value="15">15분</option><option value="30">30분</option></select><select id="edSnoozeCnt" aria-label="다시 알림 횟수"><option value="1">1회</option><option value="2">2회</option><option value="3">3회</option><option value="5">5회</option><option value="99">계속 반복</option></select></div>
+  </div>
+  <button class="ed-del" type="button" id="edDelete" hidden>이 알람 삭제</button>
+  <div class="ed-actions"><button type="button" id="edCancel">취소</button><button type="button" class="save" id="edSave">저장</button></div>
+</div>
+
+<div class="ring" id="ring" role="alertdialog" aria-modal="true" aria-labelledby="ringLabel">
+  <div><div class="rl" id="ringLabel"></div><div class="rt num" id="ringTime"></div><div class="rd" id="ringDate"></div><div class="late" id="ringLate"></div></div>
+  <button class="snooze-btn" type="button" id="ringSnooze"></button>
+  <div id="ringCtl"></div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script id="alarm-core">
+/* Pure alarm scheduling helpers (also used by tools/test_rev177.mjs). */
+var AlarmCore = (function () {
+  var DAY = ['일', '월', '화', '수', '목', '금', '토'];
+  function pad(n) { return String(n).padStart(2, '0'); }
+  function dateKey(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function parseDate(s) { var p = String(s).split('-').map(Number); return new Date(p[0], p[1] - 1, p[2]); }
+  /* Next ring time strictly after `now`, ignoring `enabled`. */
+  function nextTrigger(a, now) {
+    var t = now.getTime();
+    if (a.snoozeUntil && a.snoozeUntil > t) return new Date(a.snoozeUntil);
+    if (a.date) {
+      var d = parseDate(a.date); d.setHours(a.h, a.m, 0, 0);
+      return d.getTime() > t ? d : null;
+    }
+    for (var i = 0; i <= 8; i++) {
+      var c = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i, a.h, a.m, 0, 0);
+      if (c.getTime() <= t) continue;
+      if (a.days && a.days.length && a.days.indexOf(c.getDay()) < 0) continue;
+      return c;
+    }
+    return null;
+  }
+  /* Alarms whose ring time fell in (since, now] and is at most `grace` ms ago. */
+  function dueAlarms(alarms, since, now, grace) {
+    var out = [];
+    alarms.forEach(function (a) {
+      if (!a.enabled) return;
+      var t = nextTrigger(a, since);
+      if (t && t.getTime() <= now.getTime()) out.push({ alarm: a, at: t, late: now.getTime() - t.getTime() > (grace || 300000) });
+    });
+    return out;
+  }
+  function untilText(ms) {
+    var min = Math.max(1, Math.floor(ms / 60000));
+    var d = Math.floor(min / 1440), h = Math.floor((min % 1440) / 60), m = min % 60;
+    if (d) return d + '일' + (h ? ' ' + h + '시간' : '');
+    if (h) return h + '시간' + (m ? ' ' + m + '분' : '');
+    return m + '분';
+  }
+  /* Card countdown uses the same next occurrence as the alarm scheduler. */
+  function remainingText(a, now, isRinging) {
+    if (isRinging) return '알람 울리는 중';
+    if (!a.enabled) return '알람 꺼짐';
+    var next = nextTrigger(a, now);
+    if (!next) return '지난 알람';
+    var ms = next.getTime() - now.getTime();
+    if (ms < 60000) return Math.max(1, Math.ceil(ms / 1000)) + '초 남음';
+    var minutes = Math.floor(ms / 60000);
+    var days = Math.floor(minutes / 1440), hours = Math.floor((minutes % 1440) / 60), mins = minutes % 60;
+    var parts = [];
+    if (days) parts.push(days + '일');
+    if (hours) parts.push(hours + '시간');
+    if (mins) parts.push(mins + '분');
+    return parts.join(' ') + ' 남음';
+  }
+  function relDay(target, now) {
+    var a = new Date(target.getFullYear(), target.getMonth(), target.getDate());
+    var b = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    var diff = Math.round((a - b) / 86400000);
+    if (diff === 0) return '오늘';
+    if (diff === 1) return '내일';
+    if (diff === 2) return '모레';
+    return DAY[target.getDay()] + '요일';
+  }
+  function repeatText(days) {
+    if (!days || !days.length) return '';
+    var s = days.slice().sort().join(',');
+    if (s === '0,1,2,3,4,5,6') return '매일';
+    if (s === '1,2,3,4,5') return '평일';
+    if (s === '0,6') return '주말';
+    return '매주 ' + days.slice().sort().map(function (d) { return DAY[d]; }).join(', ');
+  }
+  function parseTimeNumbers(h, m) {
+    h = String(h).trim(); m = String(m).trim();
+    if (!/^\d{1,2}$/.test(h) || !/^\d{1,2}$/.test(m)) return null;
+    h = Number(h); m = Number(m);
+    return h <= 23 && m <= 59 ? { h: h, m: m } : null;
+  }
+  function volumeLevel(value) {
+    var n = Number(value);
+    return Math.max(10, Math.min(300, isFinite(n) ? n : 200)) / 100;
+  }
+  function upgradeVolumeScale(alarms, settings) {
+    if (settings.volumeScale === 2) return;
+    alarms.forEach(function (a) {
+      var old = Number(a.volume); if (!isFinite(old)) old = 80;
+      a.volume = Math.round(volumeLevel(old <= 100 ? old * 2 : old) * 100);
+    });
+    settings.volumeScale = 2;
+  }
+  function rampPlan(volume, enabled) {
+    var to = volumeLevel(volume);
+    return { from: enabled ? Math.min(.6, to * .25) : to, to: to, seconds: enabled ? 30 : 0 };
+  }
+  function formatTime(h, m, use24) {
+    if (use24) return { ap: '', hm: pad(h) + ':' + pad(m) };
+    return { ap: h < 12 ? '오전' : '오후', hm: (h % 12 || 12) + ':' + pad(m) };
+  }
+  return { DAY: DAY, pad: pad, dateKey: dateKey, parseDate: parseDate, nextTrigger: nextTrigger, dueAlarms: dueAlarms, untilText: untilText, remainingText: remainingText, relDay: relDay, repeatText: repeatText, formatTime: formatTime, parseTimeNumbers: parseTimeNumbers, volumeLevel: volumeLevel, rampPlan: rampPlan, upgradeVolumeScale: upgradeVolumeScale };
+})();
+</script>
+
+<script id="alarm-app">
+(function () {
+  'use strict';
+  var C = AlarmCore, KEY = 'bus1560.alarm.v1', $ = function (id) { return document.getElementById(id); };
+  var SOUNDS = [
+    ['bell', '기본 벨'], ['digital', '디지털 비프'], ['chime', '부드러운 차임'], ['busbell', '버스 하차벨'], ['siren', '긴급 사이렌'], ['rise', '아침 햇살'],
+    ['lion', '🦁 사자 포효'], ['tiger', '🐯 호랑이 포효'], ['tigerGrowl', '🐯 호랑이 으르렁'],
+    ['rooster', '🐓 닭 꼬끼오'], ['roosterFarm', '🐓 닭 꼬끼오 2'],
+    ['bird', '🐦 새 지저귐'], ['dog', '🐶 강아지 멍멍'], ['cat', '🐱 고양이 야옹']
+  ];
+  var DEFAULT_SETTINGS = { theme: 'dark', controller: 'swipe', weekStart: 0, use24: true, keepAwake: false, sort: 'time', hideKeepNotice: false, outputDeviceId: '', outputDeviceLabel: '' };
+  function uid() { return 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+  function mk(h, m, label, enabled, date) {
+    return { id: uid(), h: h, m: m, label: label || '', days: [], date: date || null, enabled: !!enabled, sound: 'bell', volume: 200, ramp: true, vibrate: true, snooze: true, snoozeMin: 5, snoozeCount: 3, snoozeLeft: 3, snoozeUntil: null };
+  }
+  function seed() {
+    /* 처음 열었을 때: 사용자 휴대폰 알람 목록과 같은 구성 */
+    return [mk(15, 35, '', true, '2026-11-01'), mk(19, 0, '', true, '2026-11-01'), mk(3, 55, '집 출'), mk(4, 45, '평일 8번'), mk(4, 55, '집출'), mk(5, 0, '집출발. 평일7번.8번'), mk(6, 15, '평.10번.2회.9번출'), mk(7, 10, '')];
+  }
+  var state;
+  function load() {
+    var raw = null;
+    try { raw = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
+    state = raw && Array.isArray(raw.alarms) ? raw : { alarms: seed(), settings: { volumeScale: 2 } };
+    state.settings = Object.assign({}, DEFAULT_SETTINGS, state.settings || {});
+    C.upgradeVolumeScale(state.alarms, state.settings);
+    state.alarms.forEach(function (a) { a.days = Array.isArray(a.days) ? a.days : []; });
+  }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+  function S() { return state.settings; }
+
+  /* ---------- toast ---------- */
+  var toastTimer;
+  function toast(msg) { var t = $('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.classList.remove('on'); }, 2600); }
+
+  /* ---------- theme ---------- */
+  function applyTheme() {
+    var th = S().theme;
+    if (th === 'system') th = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+    document.documentElement.dataset.theme = th;
+    document.querySelector('meta[name=theme-color]').content = th === 'light' ? '#f3f3f5' : '#000000';
+  }
+
+  /* ---------- audio ---------- */
+  var ctx = null, master = null, limiter = null;
+  function audio() {
+    if (!ctx) {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      ctx = new AC(); master = ctx.createGain();
+      limiter = ctx.createDynamicsCompressor();
+      limiter.threshold.value = -2; limiter.knee.value = 3; limiter.ratio.value = 20;
+      limiter.attack.value = .003; limiter.release.value = .12;
+      master.connect(limiter); limiter.connect(ctx.destination);
+    }
+    return ctx;
+  }
+  function unlockAudio() {
+    var c = audio(); if (!c) return;
+    if (c.state !== 'running') c.resume().then(updateNotices, updateNotices);
+    /* A silent blip keeps iOS/Android audio unlocked after the first tap. */
+    var o = c.createOscillator(), g = c.createGain(); g.gain.value = 0; o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime + .02);
+  }
+  function tone(freq, start, dur, type, peak, dest) {
+    var c = ctx, o = c.createOscillator(), g = c.createGain();
+    o.type = type || 'sine'; o.frequency.setValueAtTime(freq, start);
+    g.gain.setValueAtTime(0.0001, start);
+    g.gain.exponentialRampToValueAtTime(peak || .5, start + .015);
+    g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+    o.connect(g); g.connect(dest || master); o.start(start); o.stop(start + dur + .05);
+    return o;
+  }
+  /* Local recordings are decoded once, then use the same gain/ramp as all bells. */
+  var ANIMAL_SOUNDS = {
+    lion: './audio/alarms/lion-roar.mp3', tiger: './audio/alarms/tiger-roar.mp3', tigerGrowl: './audio/alarms/tiger-growl.mp3',
+    rooster: './audio/alarms/rooster.mp3?v=186', roosterFarm: './audio/alarms/rooster-farm.mp3',
+    bird: './audio/alarms/bird.mp3', dog: './audio/alarms/dog.mp3', cat: './audio/alarms/cat.mp3'
+  };
+  var animalBuffers = {}, animalLoads = {};
+  function loadAnimal(kind) {
+    if (!ANIMAL_SOUNDS[kind]) return Promise.resolve(null);
+    if (animalBuffers[kind]) return Promise.resolve(animalBuffers[kind]);
+    if (animalLoads[kind]) return animalLoads[kind];
+    var c = audio();
+    if (!c) return Promise.reject(new Error('Audio unavailable'));
+    animalLoads[kind] = fetch(ANIMAL_SOUNDS[kind]).then(function (r) {
+      if (!r.ok) throw new Error('Audio download failed');
+      return r.arrayBuffer();
+    }).then(function (data) { return c.decodeAudioData(data); }).then(function (buffer) {
+      animalBuffers[kind] = buffer; delete animalLoads[kind]; return buffer;
+    }, function (err) { delete animalLoads[kind]; throw err; });
+    return animalLoads[kind];
+  }
+  /* Schedules one cycle of a sound and returns its length in seconds. */
+  function cycle(kind, t0, dest) {
+    var i;
+    if (ANIMAL_SOUNDS[kind]) {
+      if (animalBuffers[kind]) {
+        var source = ctx.createBufferSource(); source.buffer = animalBuffers[kind];
+        source.connect(dest || master); source.start(t0); return source.buffer.duration;
+      }
+      // A bell remains available if a recording cannot be loaded in time.
+      loadAnimal(kind).catch(function () {});
+    }
+    switch (kind) {
+      case 'digital': for (i = 0; i < 4; i++) tone(2093, t0 + i * .16, .1, 'square', .22, dest); return 1.1;
+      case 'chime': [523, 659, 784, 1047].forEach(function (f, k) { tone(f, t0 + k * .28, 1.4, 'sine', .5, dest); }); return 2.4;
+      case 'busbell': tone(1318, t0, .9, 'triangle', .55, dest); tone(1046, t0 + .45, 1.3, 'triangle', .55, dest); return 2.2;
+      case 'siren':
+        var o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'sawtooth';
+        o.frequency.setValueAtTime(700, t0); o.frequency.linearRampToValueAtTime(1300, t0 + .7); o.frequency.linearRampToValueAtTime(700, t0 + 1.4);
+        g.gain.setValueAtTime(.18, t0); g.gain.setValueAtTime(.18, t0 + 1.35); g.gain.linearRampToValueAtTime(0.0001, t0 + 1.45);
+        o.connect(g); g.connect(dest || master); o.start(t0); o.stop(t0 + 1.5); return 1.5;
+      case 'rise': [392, 494, 587, 784, 988].forEach(function (f, k) { tone(f, t0 + k * .18, .9, 'sine', .45, dest); }); return 1.9;
+      default: for (i = 0; i < 2; i++) { tone(880, t0 + i * .5, .45, 'triangle', .55, dest); tone(1760, t0 + i * .5, .3, 'sine', .18, dest); } return 1.4;
+    }
+  }
+  var previewGain = null, previewStop = null, previewGeneration = 0, previewPending = false;
+  function preview(kind, vol) {
+    var c = audio(); if (!c) { toast('이 브라우저는 소리를 지원하지 않습니다'); return; }
+    unlockAudio(); stopPreview();
+    var generation = previewGeneration; previewPending = true;
+    $('edSoundStatus').textContent = '소리를 준비하고 있습니다…';
+    $('edPreview').textContent = '■'; $('edPreview').setAttribute('aria-pressed', 'true');
+    loadAnimal(kind).then(function () {
+      if (generation !== previewGeneration) return;
+      previewPending = false;
+      var g = c.createGain(); g.gain.value = C.volumeLevel(vol); g.connect(master); previewGain = g;
+      var len = cycle(kind, c.currentTime + .05, g);
+      var chosen = SOUNDS.find(function (s) { return s[0] === kind; });
+      $('edSoundStatus').textContent = '미리 듣는 중 · ' + (chosen ? chosen[1] : '알람음');
+      previewStop = setTimeout(stopPreview, (len < 1.6 ? len * 2 + .1 : len + .1) * 1000);
+      if (len < 1.6) cycle(kind, c.currentTime + .05 + len, g);
+    }).catch(function () {
+      if (generation !== previewGeneration) return;
+      stopPreview(); toast('동물 소리를 불러오지 못했습니다. 다시 눌러 주세요');
+    });
+  }
+  function stopPreview() {
+    previewGeneration++; previewPending = false; clearTimeout(previewStop);
+    if (previewGain) { try { previewGain.disconnect(); } catch (e) {} previewGain = null; }
+    $('edPreview').textContent = '▶'; $('edPreview').setAttribute('aria-pressed', 'false');
+    $('edSoundStatus').textContent = '';
+  }
+
+  /* ---------- wake lock ---------- */
+  var wakeLock = null;
+  function wantWake() { return S().keepAwake || ringing; }
+  function syncWake() {
+    if (!('wakeLock' in navigator)) return;
+    if (wantWake() && document.visibilityState === 'visible') {
+      if (!wakeLock) navigator.wakeLock.request('screen').then(function (l) { wakeLock = l; l.addEventListener('release', function () { wakeLock = null; }); }).catch(function () {});
+    } else if (wakeLock) { wakeLock.release().catch(function () {}); wakeLock = null; }
+  }
+
+  /* ---------- rendering ---------- */
+  function startOrder() { var w = S().weekStart; return [0, 1, 2, 3, 4, 5, 6].map(function (i) { return (i + w) % 7; }); }
+  function sorted() {
+    var now = new Date(), list = state.alarms.slice();
+    if (S().sort === 'time') {
+      var key = function (a) { var t = C.nextTrigger(a, now); return t ? t.getTime() : 9e15 + a.h * 60 + a.m; };
+      list.sort(function (x, y) { return (x.enabled === y.enabled ? 0 : x.enabled ? -1 : 1) || key(x) - key(y); });
+    }
+    return list;
+  }
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  var selecting = false, picked = {};
+  function renderList() {
+    var now = new Date(), html = '';
+    var list = sorted();
+    if (!list.length) html = '<div class="empty">알람이 없습니다.<br>아래 노란 버튼으로 알람을 추가하세요.</div>';
+    list.forEach(function (a) {
+      var tf = C.formatTime(a.h, a.m, S().use24), next = C.nextTrigger(a, now), when = '';
+      if (a.days.length) {
+        if (a.days.length === 7) when = '<span>매일</span>';
+        else when = '<span class="days">' + startOrder().map(function (d) { return '<i class="' + (a.days.indexOf(d) >= 0 ? 'on ' : '') + (d === 0 ? 'sun' : d === 6 ? 'sat' : '') + '">' + C.DAY[d] + '</i>'; }).join('') + '</span>';
+      } else if (a.date) {
+        var dd = C.parseDate(a.date);
+        when = '<span class="chip">' + (dd.getMonth() + 1) + '월 ' + dd.getDate() + '일</span><span>' + (next ? C.relDay(dd, now) : '지난 날짜') + '</span>';
+      } else {
+        when = '<span>' + (next ? C.relDay(next, now) : '') + '</span>';
+      }
+      if (a.enabled && a.snoozeUntil && a.snoozeUntil > now.getTime()) {
+        var st = new Date(a.snoozeUntil);
+        when += '<span class="snoozed">💤 ' + C.pad(st.getHours()) + ':' + C.pad(st.getMinutes()) + ' 다시 알림</span>';
+      }
+      html += '<div class="card' + (a.enabled ? '' : ' off') + (picked[a.id] ? ' picked' : '') + '" data-id="' + a.id + '" role="group" aria-label="' + esc((a.label ? a.label + ' ' : '') + (tf.ap + ' ' + tf.hm)) + ' 알람">' +
+        '<span class="pick" aria-hidden="true"></span>' +
+        '<div class="label">' + (a.label ? '<svg aria-hidden="true"><use href="#i-tag"/></svg><span>' + esc(a.label) + '</span>' : '') + '</div>' +
+        '<div class="time num">' + (tf.ap ? '<small>' + tf.ap + '</small>' : '') + tf.hm + '</div>' +
+        '<div class="when">' + when + '</div>' +
+        '<div class="remaining" data-alarm-id="' + esc(a.id) + '">' + esc(C.remainingText(a, now, !!(ringing && ringing.id === a.id))) + '</div>' +
+        '<div class="side"><button class="tg" type="button" role="switch" aria-checked="' + a.enabled + '" aria-label="알람 켜기/끄기" data-act="toggle"></button>' +
+        '<button class="kebab" type="button" aria-label="알람 메뉴" data-act="menu"><svg><use href="#i-kebab"/></svg></button></div></div>';
+    });
+    $('list').innerHTML = html;
+    $('list').classList.toggle('selecting', selecting);
+    $('selbar').classList.toggle('on', selecting);
+    $('fab').style.display = selecting ? 'none' : '';
+    $('selDel').textContent = '삭제 (' + Object.keys(picked).length + ')';
+    renderHead();
+  }
+  /* Update text in place each second so countdowns do not replace controls. */
+  function renderRemaining(now) {
+    $('list').querySelectorAll('.remaining[data-alarm-id]').forEach(function (node) {
+      var a = find(node.getAttribute('data-alarm-id'));
+      if (!a) return;
+      var text = C.remainingText(a, now, !!(ringing && ringing.id === a.id));
+      if (node.textContent !== text) node.textContent = text;
+    });
+  }
+  function nextEnabled(now) {
+    var best = null;
+    state.alarms.forEach(function (a) { if (!a.enabled) return; var t = C.nextTrigger(a, now); if (t && (!best || t < best.t)) best = { a: a, t: t }; });
+    return best;
+  }
+  function renderHead() {
+    var now = new Date(), n = nextEnabled(now);
+    if (n) {
+      $('nextBig').textContent = C.untilText(n.t - now);
+      var tf = C.formatTime(n.t.getHours(), n.t.getMinutes(), S().use24);
+      $('nextSmall').textContent = '후 알람 · ' + C.relDay(n.t, now) + ' ' + (tf.ap ? tf.ap + ' ' : '') + tf.hm + (n.a.label ? ' · ' + n.a.label : '');
+    } else { $('nextBig').textContent = '알람 꺼짐'; $('nextSmall').textContent = '켜진 알람이 없습니다'; }
+  }
+  var LABELS = { theme: { dark: '다크', light: '라이트', system: '시스템 설정' }, controller: { swipe: '스와이프', button: '버튼' }, weekStart: { 0: '일요일', 1: '월요일' } };
+  function renderSettings() {
+    Object.keys(LABELS).forEach(function (k) { $('v' + k[0].toUpperCase() + k.slice(1)).textContent = LABELS[k][S()[k]]; });
+    $('t24').setAttribute('aria-checked', S().use24);
+    $('tWake').setAttribute('aria-checked', S().keepAwake);
+    $('vInstall').textContent = installed() ? '추가됨' : '추가';
+    $('vNotify').textContent = !('Notification' in window) ? '지원 안 됨' : Notification.permission === 'granted' ? '허용됨' : Notification.permission === 'denied' ? '차단됨' : '허용하기';
+  }
+  function updateNotices() {
+    var needSound = state.alarms.some(function (a) { return a.enabled; }) && (!ctx || ctx.state !== 'running');
+    $('soundNotice').hidden = !needSound;
+    $('installNotice').hidden = installed() || S().hideInstallNotice;
+    $('keepNotice').hidden = S().hideKeepNotice || !state.alarms.some(function (a) { return a.enabled; });
+  }
+  function renderAll() { renderList(); renderSettings(); updateNotices(); }
+
+  /* ---------- tabs ---------- */
+  var tab = 'alarm';
+  function showTab(t) {
+    tab = t;
+    ['alarm', 'more'].forEach(function (k) { $('view-' + k).classList.toggle('on', k === t); });
+    document.querySelectorAll('.nav button').forEach(function (b) { b.setAttribute('aria-selected', b.dataset.tab === t); });
+    $('fab').hidden = t !== 'alarm';
+    if (t !== 'alarm' && selecting) exitSelect();
+    window.scrollTo(0, 0);
+  }
+  document.querySelectorAll('.nav button').forEach(function (b) { b.addEventListener('click', function () { showTab(b.dataset.tab); }); });
+
+  /* ---------- choice sheet ---------- */
+  var openSheet = null;
+  function openS(el) { closeS(); openSheet = el; $('scrim').classList.add('on'); el.classList.add('on'); }
+  function closeS() { if (openSheet) openSheet.classList.remove('on'); openSheet = null; $('scrim').classList.remove('on'); stopPreview(); }
+  $('scrim').addEventListener('click', closeS);
+  function choose(title, options, current, textHtml) {
+    return new Promise(function (resolve) {
+      $('choiceTitle').textContent = title;
+      $('choiceText').hidden = !textHtml; $('choiceText').innerHTML = textHtml || '';
+      var box = $('choiceOpts'); box.innerHTML = '';
+      options.forEach(function (o) {
+        var b = document.createElement('button'); b.type = 'button'; b.className = 'opt' + (o.danger ? ' danger' : '');
+        b.textContent = o.label; if (current !== undefined) b.setAttribute('aria-checked', String(o.value) === String(current));
+        b.addEventListener('click', function () { closeS(); resolve(o.value); });
+        box.appendChild(b);
+      });
+      openS($('choice'));
+    });
+  }
+
+  /* ---------- list interactions ---------- */
+  function find(id) { return state.alarms.filter(function (a) { return a.id === id; })[0]; }
+  function enable(a, on) {
+    a.enabled = on; a.snoozeUntil = null; a.snoozeLeft = a.snoozeCount;
+    if (on && a.date && !C.nextTrigger(a, new Date())) a.date = null;
+    save(); renderAll();
+    if (on) { var t = C.nextTrigger(a, new Date()); if (t) toast(C.untilText(t - new Date()) + ' 후에 알람이 울립니다'); unlockAudio(); }
+  }
+  var pressTimer = null, longPressed = false;
+  $('list').addEventListener('pointerdown', function (e) {
+    var card = e.target.closest('.card'); if (!card || e.target.closest('button')) return;
+    longPressed = false; clearTimeout(pressTimer);
+    pressTimer = setTimeout(function () { longPressed = true; if (!selecting) { selecting = true; picked = {}; } picked[card.dataset.id] = true; if (navigator.vibrate) navigator.vibrate(20); renderList(); }, 550);
+  });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (k) { $('list').addEventListener(k, function () { clearTimeout(pressTimer); }); });
+  $('list').addEventListener('click', function (e) {
+    unlockAudio();
+    var card = e.target.closest('.card'); if (!card) return;
+    if (longPressed) { longPressed = false; return; }
+    var a = find(card.dataset.id), act = e.target.closest('[data-act]');
+    if (selecting) { if (picked[a.id]) delete picked[a.id]; else picked[a.id] = true; renderList(); return; }
+    if (act && act.dataset.act === 'toggle') { enable(a, !a.enabled); return; }
+    if (act && act.dataset.act === 'menu') {
+      choose((a.label || '알람') + ' · ' + C.pad(a.h) + ':' + C.pad(a.m), [{ label: '편집', value: 'edit' }, { label: '복제', value: 'copy' }, { label: '삭제', value: 'del', danger: true }]).then(function (v) {
+        if (v === 'edit') openEditor(a);
+        if (v === 'copy') { var b = JSON.parse(JSON.stringify(a)); b.id = uid(); b.enabled = false; state.alarms.splice(state.alarms.indexOf(a) + 1, 0, b); save(); renderAll(); toast('알람을 복제했습니다'); }
+        if (v === 'del') removeAlarms([a.id]);
+      });
+      return;
+    }
+    openEditor(a);
+  });
+  var lastRemoved = null;
+  function removeAlarms(ids) {
+    lastRemoved = state.alarms.filter(function (a) { return ids.indexOf(a.id) >= 0; });
+    state.alarms = state.alarms.filter(function (a) { return ids.indexOf(a.id) < 0; });
+    save(); renderAll(); toast(ids.length + '개 알람을 삭제했습니다');
+  }
+  function exitSelect() { selecting = false; picked = {}; renderList(); }
+  $('trashBtn').addEventListener('click', function () { if (selecting) exitSelect(); else { selecting = true; picked = {}; renderList(); } });
+  $('selCancel').addEventListener('click', exitSelect);
+  $('selAll').addEventListener('click', function () { var all = state.alarms.every(function (a) { return picked[a.id]; }); picked = {}; if (!all) state.alarms.forEach(function (a) { picked[a.id] = true; }); renderList(); });
+  $('selDel').addEventListener('click', function () { var ids = Object.keys(picked); if (!ids.length) { toast('삭제할 알람을 선택하세요'); return; } selecting = false; picked = {}; removeAlarms(ids); });
+  $('sortBtn').addEventListener('click', function () {
+    choose('정렬', [{ label: '알람 시간 순', value: 'time' }, { label: '사용자 지정 순(추가한 순서)', value: 'custom' }], S().sort).then(function (v) { S().sort = v; save(); renderList(); });
+  });
+  $('menuBtn').addEventListener('click', function () {
+    var opts = [{ label: '모든 알람 끄기', value: 'off' }, { label: '켜진 알람 다시 계산', value: 'refresh' }];
+    if (lastRemoved && lastRemoved.length) opts.push({ label: '방금 삭제한 알람 되돌리기', value: 'undo' });
+    opts.push({ label: '설정', value: 'settings' });
+    choose('알람', opts).then(function (v) {
+      if (v === 'off') { state.alarms.forEach(function (a) { a.enabled = false; a.snoozeUntil = null; }); save(); renderAll(); toast('모든 알람을 껐습니다'); }
+      if (v === 'refresh') { renderAll(); toast('다음 알람: ' + $('nextBig').textContent + ' 후'); }
+      if (v === 'undo') { state.alarms = state.alarms.concat(lastRemoved); lastRemoved = null; save(); renderAll(); toast('되돌렸습니다'); }
+      if (v === 'settings') showTab('more');
+    });
+  });
+  $('soundOn').addEventListener('click', function () { unlockAudio(); preview('digital', 40); });
+  $('keepClose').addEventListener('click', function () { S().hideKeepNotice = true; save(); updateNotices(); });
+  $('fab').addEventListener('click', function () { unlockAudio(); openEditor(null); });
+
+  /* ---------- audio output ---------- */
+  function outputMessage(text) { $('outputStatus').textContent = text; }
+  function showSpeakerGuide() {
+    $('speakerGuide').hidden = false; $('speakerHelp').setAttribute('aria-expanded', 'true');
+  }
+  function outputOption(value, text) {
+    var option = document.createElement('option'); option.value = value; option.textContent = text; return option;
+  }
+  function outputLabel() {
+    return S().outputDeviceId ? '선택한 기기: ' + (S().outputDeviceLabel || '저장한 출력 기기') : '휴대폰의 ‘미디어 출력’ 설정을 따릅니다.';
+  }
+  async function refreshOutputs(manual) {
+    var media = navigator.mediaDevices, outputs = [];
+    try {
+      if (media && media.enumerateDevices) outputs = (await media.enumerateDevices()).filter(function (d) {
+        return d.kind === 'audiooutput' && d.deviceId && d.deviceId !== 'default' && d.deviceId !== 'communications';
+      });
+    } catch (_) {}
+    if (!ctx || typeof ctx.setSinkId !== 'function') outputs = [];
+    var select = $('edOutput'); select.innerHTML = '';
+    select.appendChild(outputOption('', '휴대폰 설정 (자동)'));
+    outputs.forEach(function (d, i) { select.appendChild(outputOption(d.deviceId, d.label || '출력 기기 ' + (i + 1))); });
+    if (S().outputDeviceId && !outputs.some(function (d) { return d.deviceId === S().outputDeviceId; })) {
+      select.appendChild(outputOption(S().outputDeviceId, S().outputDeviceLabel || '저장한 출력 기기'));
+    }
+    select.value = S().outputDeviceId || '';
+    if (manual) {
+      if (outputs.length && ctx && typeof ctx.setSinkId === 'function') outputMessage('목록에서 원하는 스피커나 블루투스 기기를 선택해 주세요.');
+      else {
+        showSpeakerGuide();
+        outputMessage('직접 선택할 출력 기기가 없습니다. 아래 휴대폰 스피커 설정 방법을 이용해 주세요.');
+      }
+    } else outputMessage(outputLabel());
+    return outputs;
+  }
+  async function applyOutput(id, label) {
+    var c = audio();
+    if (!c || typeof c.setSinkId !== 'function') {
+      if (id) throw new Error('Output selection unsupported');
+    } else await c.setSinkId(id);
+    S().outputDeviceId = id; S().outputDeviceLabel = id ? label : ''; save();
+    await refreshOutputs(false);
+  }
+  async function chooseOutput() {
+    stopPreview(); unlockAudio();
+    var button = $('outputChoose'); button.disabled = true; $('edOutput').disabled = true;
+    try {
+      var media = navigator.mediaDevices, c = audio();
+      if (c && typeof c.setSinkId === 'function' && media && typeof media.selectAudioOutput === 'function') {
+        var device = await media.selectAudioOutput(S().outputDeviceId ? { deviceId: S().outputDeviceId } : {});
+        await applyOutput(device.deviceId, device.label || '선택한 출력 기기');
+      } else await refreshOutputs(true);
+    } catch (error) {
+      if (error.name === 'AbortError') outputMessage('선택을 취소했습니다. 기존 출력을 유지합니다.');
+      else { showSpeakerGuide(); outputMessage('이 브라우저에서 출력 기기를 선택하지 못했습니다. 휴대폰 설정에서 선택해 주세요.'); }
+    } finally { button.disabled = false; $('edOutput').disabled = false; }
+  }
+  $('outputChoose').addEventListener('click', chooseOutput);
+  $('edOutput').addEventListener('change', async function () {
+    var select = this, option = select.options[select.selectedIndex];
+    select.disabled = true; $('outputChoose').disabled = true; stopPreview();
+    try { await applyOutput(select.value, option ? option.textContent : '출력 기기'); }
+    catch (_) { select.value = S().outputDeviceId || ''; showSpeakerGuide(); outputMessage('출력을 바꾸지 못했습니다. 기존 출력을 유지합니다.'); }
+    finally { select.disabled = false; $('outputChoose').disabled = false; }
+  });
+  $('speakerHelp').addEventListener('click', function () {
+    $('speakerGuide').hidden = !$('speakerGuide').hidden;
+    this.setAttribute('aria-expanded', String(!$('speakerGuide').hidden));
+  });
+  if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+    navigator.mediaDevices.addEventListener('devicechange', function () { refreshOutputs(false); });
+  }
+  async function restoreOutput() {
+    if (!S().outputDeviceId) {
+      if (ctx && typeof ctx.setSinkId === 'function') { try { await ctx.setSinkId(''); } catch (_) {} }
+      return;
+    }
+    try { await applyOutput(S().outputDeviceId, S().outputDeviceLabel || '저장한 출력 기기'); }
+    catch (_) {
+      try { await applyOutput('', ''); }
+      catch (_) { outputMessage('소리 출력을 바꾸지 못했습니다. 휴대폰의 미디어 출력을 확인해 주세요.'); return; }
+      outputMessage('저장한 기기를 사용할 수 없어 휴대폰의 미디어 출력 설정을 사용합니다.');
+    }
+  }
+
+  /* ---------- editor ---------- */
+  var ed = null, editing = null, wheelH = 56, wheelsReady = {}, numberMode = true;
+  function syncNumberInputs() {
+    if (!ed) return;
+    if (document.activeElement !== $('edHour')) $('edHour').value = C.pad(ed.h);
+    if (document.activeElement !== $('edMinute')) $('edMinute').value = C.pad(ed.m);
+  }
+  function readNumbers(showError) {
+    if (!ed) return false;
+    var parsed = C.parseTimeNumbers($('edHour').value, $('edMinute').value);
+    if (!parsed) {
+      if (showError) {
+        $('edTimeError').textContent = '시는 0~23, 분은 0~59로 입력해 주세요.';
+        var hourOk = C.parseTimeNumbers($('edHour').value, '0');
+        (hourOk ? $('edMinute') : $('edHour')).focus();
+      }
+      return false;
+    }
+    ed.h = parsed.h; ed.m = parsed.m; $('edTimeError').textContent = ''; return true;
+  }
+  function showTimeEntry() {
+    $('wheels').hidden = numberMode; $('edNumbers').hidden = !numberMode;
+    $('edTimeMode').textContent = numberMode ? '↕ 돌려서 선택' : '⌨ 숫자로 입력';
+  }
+  function updateVolumeLabel() {
+    var volume = Math.round(C.volumeLevel($('edVol').value) * 100);
+    $('edVolValue').textContent = volume + '%';
+    document.querySelectorAll('[data-volume]').forEach(function (b) { b.setAttribute('aria-pressed', Number(b.dataset.volume) === volume); });
+  }
+  $('edVol').addEventListener('input', updateVolumeLabel);
+  document.querySelector('.volume-presets').addEventListener('click', function (event) {
+    var button = event.target.closest('[data-volume]'); if (!button) return;
+    $('edVol').value = button.dataset.volume; updateVolumeLabel();
+  });
+  $('edTimeMode').addEventListener('click', function () {
+    if (numberMode) { if (!readNumbers(true)) return; }
+    else readWheels();
+    numberMode = !numberMode; showTimeEntry(); syncNumberInputs();
+    if (!numberMode) requestAnimationFrame(writeWheels);
+    renderWhen();
+  });
+  ['edHour', 'edMinute'].forEach(function (id) {
+    $(id).addEventListener('input', function () { if (readNumbers(false)) renderWhen(); });
+    $(id).addEventListener('blur', function () { if (readNumbers(false)) syncNumberInputs(); });
+    $(id).addEventListener('focus', function () { this.select(); });
+    $(id).addEventListener('keydown', function (event) {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+      if (id === 'edHour') $('edMinute').focus(); else $('edSave').click();
+    });
+  });
+  function buildWheel(name, values, loop) {
+    var el = document.createElement('div'); el.className = 'wheel' + (name === 'ap' ? ' ampm' : ''); el.dataset.name = name;
+    el.setAttribute('role', 'listbox'); el.setAttribute('aria-label', name === 'ap' ? '오전/오후' : name === 'h' ? '시' : '분'); el.tabIndex = 0;
+    var reps = loop ? 9 : 1, html = '<div class="pad"></div>';
+    for (var r = 0; r < reps; r++) values.forEach(function (v) { html += '<div>' + v + '</div>'; });
+    el.innerHTML = html + '<div class="pad"></div>';
+    el._n = values.length; el._loop = loop; el._vals = values;
+    var t;
+    el.addEventListener('scroll', function () { clearTimeout(t); t = setTimeout(function () { settle(el); }, 110); }, { passive: true });
+    el.addEventListener('keydown', function (e) { if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { e.preventDefault(); el.scrollBy({ top: e.key === 'ArrowUp' ? -wheelH : wheelH, behavior: 'smooth' }); } });
+    return el;
+  }
+  function idxOf(el) { return Math.round(el.scrollTop / wheelH); }
+  function settle(el) {
+    if (el._loop) {
+      var i = idxOf(el), n = el._n, mid = Math.floor(9 / 2) * n;
+      if (i < n * 2 || i >= n * 7) { el.scrollTop = (mid + (i % n)) * wheelH; }
+    }
+    readWheels(); renderWhen();
+  }
+  function setWheel(el, index) { el.scrollTop = ((el._loop ? Math.floor(9 / 2) * el._n : 0) + index) * wheelH; }
+  function wheelVal(name) { var el = $('wheels').querySelector('[data-name="' + name + '"]'); return el ? idxOf(el) % el._n : 0; }
+  function buildWheels() {
+    var w = $('wheels'); w.innerHTML = '';
+    var hours = [], mins = [], i;
+    if (S().use24) for (i = 0; i < 24; i++) hours.push(C.pad(i)); else for (i = 1; i <= 12; i++) hours.push(String(i));
+    for (i = 0; i < 60; i++) mins.push(C.pad(i));
+    if (!S().use24) w.appendChild(buildWheel('ap', ['오전', '오후'], false));
+    w.appendChild(buildWheel('h', hours, true));
+    var colon = document.createElement('span'); colon.className = 'colon'; colon.textContent = ':'; w.appendChild(colon);
+    w.appendChild(buildWheel('m', mins, true));
+  }
+  function writeWheels() {
+    syncNumberInputs();
+    if (numberMode) return;
+    var w = $('wheels');
+    if (S().use24) setWheel(w.querySelector('[data-name=h]'), ed.h);
+    else { setWheel(w.querySelector('[data-name=ap]'), ed.h < 12 ? 0 : 1); setWheel(w.querySelector('[data-name=h]'), (ed.h % 12 || 12) - 1); }
+    setWheel(w.querySelector('[data-name=m]'), ed.m);
+  }
+  function readWheels() {
+    if (!ed) return;
+    if (numberMode) { readNumbers(false); return; }
+    if (S().use24) ed.h = wheelVal('h');
+    else { var h12 = wheelVal('h') + 1, pm = wheelVal('ap') === 1; ed.h = (h12 % 12) + (pm ? 12 : 0); }
+    ed.m = wheelVal('m');
+    syncNumberInputs();
+  }
+  function renderWhen() {
+    if (!ed) return;
+    var now = new Date(), t = C.nextTrigger(Object.assign({}, ed, { snoozeUntil: null }), now), txt;
+    if (ed.days.length) txt = C.repeatText(ed.days);
+    else if (ed.date) { var d = C.parseDate(ed.date); txt = (d.getMonth() + 1) + '월 ' + d.getDate() + '일 (' + C.DAY[d.getDay()] + ')' + (t ? '' : ' · 지난 시간'); }
+    else txt = t ? C.relDay(t, now) + ' ' + (t.getMonth() + 1) + '월 ' + t.getDate() + '일 (' + C.DAY[t.getDay()] + ')' : '';
+    $('edWhen').textContent = txt + (t ? ' · ' + C.untilText(t - now) + ' 후' : '');
+    $('clearDate').hidden = !ed.date;
+    $('daypick').querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', ed.days.indexOf(+b.dataset.d) >= 0); });
+    $('edSnoozeSum').textContent = ed.snooze ? ed.snoozeMin + '분, ' + (ed.snoozeCount >= 99 ? '계속 반복' : ed.snoozeCount + '회') : '사용 안 함';
+    $('snoozeOpts').style.display = ed.snooze ? '' : 'none';
+    ['edRamp', 'edVib', 'edSnooze'].forEach(function (id) { $(id).setAttribute('aria-checked', !!ed[{ edRamp: 'ramp', edVib: 'vibrate', edSnooze: 'snooze' }[id]]); });
+  }
+  function openEditor(a) {
+    editing = a;
+    var now = new Date();
+    ed = a ? JSON.parse(JSON.stringify(a)) : mk(now.getHours(), now.getMinutes(), '', true);
+    if (!a) { var later = new Date(now.getTime() + 5 * 60000); ed.h = later.getHours(); ed.m = later.getMinutes(); }
+    numberMode = true; showTimeEntry(); syncNumberInputs(); $('edTimeError').textContent = '';
+    buildWheels();
+    $('daypick').innerHTML = startOrder().map(function (d) { return '<button type="button" data-d="' + d + '" class="' + (d === 0 ? 'sun' : d === 6 ? 'sat' : '') + '" aria-label="' + C.DAY[d] + '요일">' + C.DAY[d] + '</button>'; }).join('');
+    $('edLabel').value = ed.label;
+    $('edSound').innerHTML = SOUNDS.map(function (s) { return '<option value="' + s[0] + '">' + s[1] + '</option>'; }).join('');
+    $('edSound').value = ed.sound; $('edVol').value = ed.volume;
+    updateVolumeLabel(); refreshOutputs(false);
+    loadAnimal(ed.sound).catch(function () {});
+    $('edSnoozeMin').value = String(ed.snoozeMin); $('edSnoozeCnt').value = String(ed.snoozeCount);
+    var seen = {}, sugg = [];
+    state.alarms.concat([{ label: '집출' }, { label: '출근' }, { label: '평일 8번' }, { label: '첫차' }]).forEach(function (x) { if (x.label && !seen[x.label]) { seen[x.label] = 1; sugg.push(x.label); } });
+    $('labelSugg').innerHTML = sugg.slice(0, 8).map(function (l) { return '<button type="button">' + esc(l) + '</button>'; }).join('');
+    $('edDelete').hidden = !a;
+    openS($('editor'));
+    requestAnimationFrame(function () { writeWheels(); renderWhen(); });
+  }
+  $('daypick').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    var d = +b.dataset.d, i = ed.days.indexOf(d);
+    if (i >= 0) ed.days.splice(i, 1); else { ed.days.push(d); ed.date = null; }
+    renderWhen();
+  });
+  document.querySelector('.daypresets').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-days]'); if (!b) return;
+    ed.days = b.dataset.days ? b.dataset.days.split(',').map(Number) : []; if (ed.days.length) ed.date = null; renderWhen();
+  });
+  $('clearDate').addEventListener('click', function () { ed.date = null; renderWhen(); });
+  $('edCal').addEventListener('click', function () {
+    var inp = $('edDate'); inp.min = C.dateKey(new Date()); inp.value = ed.date || C.dateKey(new Date());
+    try { inp.showPicker(); } catch (e) { inp.style.pointerEvents = 'auto'; inp.focus(); inp.click(); }
+  });
+  $('edDate').addEventListener('change', function () { if ($('edDate').value) { ed.date = $('edDate').value; ed.days = []; renderWhen(); } });
+  $('quick').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-add]'); if (!b) return;
+    readWheels();
+    var base = ed.days.length || ed.date ? ed.h * 60 + ed.m : (function () { var n = new Date(); return n.getHours() * 60 + n.getMinutes(); })();
+    var mins = (base + Number(b.dataset.add)) % 1440; ed.h = Math.floor(mins / 60); ed.m = mins % 60;
+    writeWheels(); renderWhen();
+  });
+  $('labelSugg').addEventListener('click', function (e) { var b = e.target.closest('button'); if (b) $('edLabel').value = b.textContent; });
+  [['edRamp', 'ramp'], ['edVib', 'vibrate'], ['edSnooze', 'snooze']].forEach(function (p) { $(p[0]).addEventListener('click', function () { ed[p[1]] = !ed[p[1]]; renderWhen(); }); });
+  $('edSnoozeMin').addEventListener('change', function () { ed.snoozeMin = +this.value; renderWhen(); });
+  $('edSnoozeCnt').addEventListener('change', function () { ed.snoozeCount = +this.value; renderWhen(); });
+  $('edSound').addEventListener('change', function () { stopPreview(); loadAnimal(this.value).catch(function () {}); });
+  $('edPreview').addEventListener('click', function () { if (previewGain || previewPending) stopPreview(); else preview($('edSound').value, +$('edVol').value); });
+  $('edCancel').addEventListener('click', function () { closeS(); ed = null; });
+  $('edDelete').addEventListener('click', function () { var id = editing.id; closeS(); ed = null; removeAlarms([id]); });
+  $('edSave').addEventListener('click', function () {
+    if (numberMode && !readNumbers(true)) return;
+    readWheels();
+    ed.label = $('edLabel').value.trim(); ed.sound = $('edSound').value; ed.volume = Math.round(C.volumeLevel($('edVol').value) * 100);
+    loadAnimal(ed.sound).catch(function () {});
+    ed.enabled = true; ed.snoozeUntil = null; ed.snoozeLeft = ed.snoozeCount;
+    if (ed.date && !C.nextTrigger(ed, new Date())) { toast('이미 지난 시간입니다. 날짜나 시간을 바꿔 주세요'); return; }
+    var at = editing ? state.alarms.indexOf(editing) : -1;
+    if (at >= 0) state.alarms[at] = ed; else state.alarms.unshift(ed);
+    var t = C.nextTrigger(ed, new Date());
+    save(); closeS(); ed = null; renderAll(); unlockAudio();
+    if (t) toast(C.untilText(t - new Date()) + ' 후에 알람이 울립니다');
+  });
+
+  /* ---------- home screen icon ---------- */
+  var installEvent = null;
+  function installed() {
+    try { return matchMedia('(display-mode: standalone)').matches || navigator.standalone === true || localStorage.getItem('bus1560.alarm.installed') === '1'; } catch (e) { return false; }
+  }
+  window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); installEvent = e; });
+  window.addEventListener('appinstalled', function () {
+    try { localStorage.setItem('bus1560.alarm.installed', '1'); } catch (e) {}
+    installEvent = null; renderAll(); toast('바탕화면에 ⏰ 알람 아이콘을 추가했습니다');
+  });
+  function addToHome() {
+    if (installEvent) {
+      var ev = installEvent; installEvent = null;
+      ev.prompt();
+      (ev.userChoice || Promise.resolve({})).then(function (r) {
+        if (r && r.outcome === 'accepted') { try { localStorage.setItem('bus1560.alarm.installed', '1'); } catch (e) {} renderAll(); }
+      });
+      return;
+    }
+    var ios = /iPhone|iPad|iPod/.test(navigator.userAgent), samsung = /SamsungBrowser/.test(navigator.userAgent);
+    var steps = ios
+      ? '<ol><li>Safari 아래쪽 <b>공유 버튼(□↑)</b>을 누릅니다.</li><li><b>홈 화면에 추가</b>를 누릅니다.</li><li>이름이 <b>1560 알람</b>인지 보고 <b>추가</b>를 누릅니다.</li></ol>'
+      : samsung
+        ? '<ol><li>삼성 인터넷 아래쪽 <b>메뉴(≡)</b>를 누릅니다.</li><li><b>현재 페이지 추가 › 홈 화면</b>을 누릅니다.</li><li><b>추가</b>를 누르면 바탕화면에 ⏰ 아이콘이 생깁니다.</li></ol>'
+        : '<ol><li>크롬 오른쪽 위 <b>메뉴(⋮)</b>를 누릅니다.</li><li><b>홈 화면에 추가</b>(또는 <b>앱 설치</b>)를 누릅니다.</li><li><b>추가/설치</b>를 누르면 바탕화면에 ⏰ 아이콘이 생깁니다.</li></ol>';
+    choose('바탕화면에 알람 추가', [{ label: '알겠습니다', value: 'ok' }, { label: '이미 추가했어요', value: 'done' }], undefined,
+      steps + '<p style="margin-top:8px">아이콘을 누르면 1560 알람이 바로 열립니다.</p>').then(function (v) {
+      if (v === 'done') { try { localStorage.setItem('bus1560.alarm.installed', '1'); } catch (e) {} renderAll(); }
+    });
+  }
+  $('installBtn').addEventListener('click', addToHome);
+  $('installRow').addEventListener('click', addToHome);
+  $('installLater').addEventListener('click', function () { S().hideInstallNotice = true; save(); updateNotices(); });
+
+  /* ---------- settings ---------- */
+  document.querySelectorAll('[data-set]').forEach(function (row) {
+    row.addEventListener('click', function () {
+      var k = row.dataset.set, map = LABELS[k];
+      var title = row.firstChild.textContent.trim();
+      choose(title, Object.keys(map).map(function (v) { return { label: map[v], value: v }; }), S()[k]).then(function (v) {
+        S()[k] = k === 'weekStart' ? Number(v) : v; save(); applyTheme(); renderAll();
+      });
+    });
+  });
+  $('t24').addEventListener('click', function () { S().use24 = !S().use24; save(); renderAll(); });
+  $('tWake').addEventListener('click', function () { S().keepAwake = !S().keepAwake; save(); syncWake(); renderSettings(); if (S().keepAwake && !('wakeLock' in navigator)) toast('이 브라우저는 화면 켜짐 유지를 지원하지 않습니다'); });
+  $('notifyBtn').addEventListener('click', function () {
+    if (!('Notification' in window)) { toast('이 브라우저는 알림을 지원하지 않습니다'); return; }
+    Notification.requestPermission().then(function () { renderSettings(); });
+  });
+  $('testBtn').addEventListener('click', function () { preview('bell', 200); });
+  $('backupBtn').addEventListener('click', function () {
+    var blob = new Blob([JSON.stringify({ app: '1560-alarm', version: 1, savedAt: new Date().toISOString(), alarms: state.alarms, settings: state.settings }, null, 2)], { type: 'application/json' });
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = '1560-alarm-backup-' + C.dateKey(new Date()) + '.json';
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+    toast('백업 파일을 저장했습니다');
+  });
+  $('restoreBtn').addEventListener('click', function () { $('restoreFile').click(); });
+  $('restoreFile').addEventListener('change', function () {
+    var f = this.files[0]; if (!f) return;
+    f.text().then(function (txt) {
+      var d = JSON.parse(txt);
+      if (!d || !Array.isArray(d.alarms)) throw new Error('bad');
+      d.alarms.forEach(function (a) { if (typeof a.h !== 'number' || typeof a.m !== 'number') throw new Error('bad'); a.days = Array.isArray(a.days) ? a.days : []; a.id = a.id || uid(); });
+      state.alarms = d.alarms; state.settings = Object.assign({}, DEFAULT_SETTINGS, d.settings || {});
+      C.upgradeVolumeScale(state.alarms, state.settings);
+      save(); restoreOutput(); applyTheme(); renderAll(); toast(d.alarms.length + '개 알람을 복원했습니다');
+    }).catch(function () { toast('백업 파일을 읽을 수 없습니다'); });
+    this.value = '';
+  });
+
+  /* ---------- ringing ---------- */
+  var ringing = null, ringTimer = null, ringGain = null, vibTimer = null, autoStop = null;
+  function notify(a) {
+    if (!('Notification' in window) || Notification.permission !== 'granted' || !document.hidden) return;
+    var body = C.pad(a.h) + ':' + C.pad(a.m) + (a.label ? ' · ' + a.label : '');
+    var opts = { body: body, tag: 'alarm-' + a.id, requireInteraction: true, renotify: true, vibrate: [600, 300, 600, 300, 600], icon: './icons/icon-192.png' };
+    if (navigator.serviceWorker && navigator.serviceWorker.controller) navigator.serviceWorker.ready.then(function (r) { r.showNotification('⏰ 알람', opts); }).catch(function () {});
+    else try { new Notification('⏰ 알람', opts); } catch (e) {}
+  }
+  function startSound(a) {
+    stopPreview();
+    var c = audio(); if (!c) return;
+    if (c.state !== 'running') c.resume().catch(function () {});
+    ringGain = c.createGain(); ringGain.connect(master);
+    var plan = C.rampPlan(a.volume, a.ramp), t0 = c.currentTime;
+    ringGain.gain.setValueAtTime(plan.from, t0);
+    if (plan.seconds) ringGain.gain.linearRampToValueAtTime(plan.to, t0 + plan.seconds);
+    var nextAt = t0 + .05;
+    function pump() { if (!ringGain) return; while (nextAt < c.currentTime + 2) nextAt += cycle(a.sound, nextAt, ringGain) + .35; }
+    pump(); ringTimer = setInterval(pump, 500);
+  }
+  function stopSound() {
+    clearInterval(ringTimer); ringTimer = null; clearInterval(vibTimer); vibTimer = null;
+    if (ringGain) { try { ringGain.gain.cancelScheduledValues(0); ringGain.disconnect(); } catch (e) {} ringGain = null; }
+    if (navigator.vibrate) navigator.vibrate(0);
+  }
+  function ring(a, late) {
+    if (ringing) { /* 이미 울리는 중이면 이 알람은 1분 뒤 다시 알림 */ a.snoozeUntil = Date.now() + 60000; save(); return; }
+    ringing = a; a.snoozeUntil = null; save();
+    var now = new Date(), tf = C.formatTime(now.getHours(), now.getMinutes(), S().use24);
+    $('ringLabel').textContent = a.label || '알람';
+    $('ringTime').textContent = (tf.ap ? tf.ap + ' ' : '') + tf.hm;
+    $('ringDate').textContent = (now.getMonth() + 1) + '월 ' + now.getDate() + '일 ' + C.DAY[now.getDay()] + '요일';
+    $('ringLate').textContent = late ? '⚠️ 예정 ' + C.pad(a.h) + ':' + C.pad(a.m) + ' 알람이 늦게 확인되었습니다' : '';
+    var canSnooze = a.snooze && (a.snoozeLeft === undefined || a.snoozeLeft > 0);
+    $('ringSnooze').hidden = !canSnooze;
+    $('ringSnooze').textContent = '💤 다시 알림 ' + a.snoozeMin + '분' + (canSnooze && a.snoozeCount < 99 ? ' (' + a.snoozeLeft + '회 남음)' : '');
+    buildController();
+    $('ring').classList.add('on');
+    closeS();
+    startSound(a);
+    if (a.vibrate && navigator.vibrate) { navigator.vibrate([800, 400, 800, 400, 800]); vibTimer = setInterval(function () { navigator.vibrate([800, 400, 800, 400, 800]); }, 3200); }
+    notify(a); syncWake();
+    clearTimeout(autoStop);
+    autoStop = setTimeout(function () { if (ringing === a) { if (canSnooze) snooze(); else dismiss(); } }, 10 * 60000);
+  }
+  function endRing() { stopSound(); clearTimeout(autoStop); $('ring').classList.remove('on'); ringing = null; syncWake(); save(); renderAll(); }
+  function dismiss() {
+    var a = ringing; if (!a) return;
+    a.snoozeUntil = null; a.snoozeLeft = a.snoozeCount;
+    if (!a.days.length) { a.enabled = false; a.date = null; }
+    endRing();
+    var n = nextEnabled(new Date()); toast(n ? '알람 해제 · 다음 알람 ' + C.untilText(n.t - new Date()) + ' 후' : '알람을 해제했습니다');
+  }
+  function snooze() {
+    var a = ringing; if (!a) return;
+    a.snoozeUntil = Date.now() + a.snoozeMin * 60000;
+    if (a.snoozeCount < 99) a.snoozeLeft = Math.max(0, (a.snoozeLeft === undefined ? a.snoozeCount : a.snoozeLeft) - 1);
+    endRing(); toast(a.snoozeMin + '분 후에 다시 울립니다');
+  }
+  $('ringSnooze').addEventListener('click', snooze);
+  function buildController() {
+    var box = $('ringCtl');
+    if (S().controller === 'button') {
+      box.innerHTML = '<button class="dismiss-btn" type="button" id="ringStop">해제</button>';
+      $('ringStop').addEventListener('click', dismiss); return;
+    }
+    box.innerHTML = '<div class="swipe-zone"><div class="swipe-ring" id="swRing"></div><div class="swipe-knob" id="swKnob" role="button" tabindex="0" aria-label="알람 해제: 바깥쪽으로 밀거나 엔터"><svg><use href="#i-x"/></svg></div></div><div class="swipe-hint">✕ 를 아무 방향으로 밀어서 해제</div>';
+    var knob = $('swKnob'), ringEl = $('swRing'), sx = 0, sy = 0, drag = false, LIMIT = 105;
+    knob.addEventListener('pointerdown', function (e) { drag = true; sx = e.clientX; sy = e.clientY; knob.setPointerCapture(e.pointerId); knob.style.animation = 'none'; ringEl.style.opacity = 1; ringEl.style.transform = 'scale(.4)'; });
+    knob.addEventListener('pointermove', function (e) {
+      if (!drag) return; var dx = e.clientX - sx, dy = e.clientY - sy, d = Math.hypot(dx, dy);
+      knob.style.transform = 'translate(' + dx + 'px,' + dy + 'px)'; ringEl.style.transform = 'scale(' + Math.min(1, .4 + d / LIMIT * .6) + ')';
+      if (d > LIMIT) { drag = false; dismiss(); }
+    });
+    function reset() { drag = false; knob.style.transform = ''; knob.style.animation = ''; ringEl.style.opacity = 0; }
+    knob.addEventListener('pointerup', reset); knob.addEventListener('pointercancel', reset);
+    knob.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); dismiss(); } });
+  }
+
+  /* ---------- scheduler ---------- */
+  var lastCheck = new Date(), lastMinute = -1;
+  function tick() {
+    var now = new Date();
+    if (now < lastCheck || now - lastCheck > 6 * 3600000) lastCheck = new Date(now.getTime() - 1000);
+    var due = C.dueAlarms(state.alarms, lastCheck, now, 5 * 60000);
+    lastCheck = now;
+    var missed = [];
+    due.forEach(function (d) {
+      if (d.late && now - d.at > 15 * 60000) { missed.push(d.alarm); return; }
+      ring(d.alarm, d.late);
+    });
+    if (missed.length) {
+      missed.forEach(function (a) { a.snoozeUntil = null; if (!a.days.length) { a.enabled = false; a.date = null; } });
+      save(); toast('⚠️ 화면이 닫혀 있어 놓친 알람: ' + missed.map(function (a) { return C.pad(a.h) + ':' + C.pad(a.m); }).join(', '));
+    }
+    var minute = Math.floor(now.getTime() / 60000);
+    if (minute !== lastMinute || due.length || missed.length) { lastMinute = minute; if (!ringing) renderList(); }
+    renderRemaining(now);
+  }
+  function tidy() {
+    var now = new Date(), changed = false;
+    state.alarms.forEach(function (a) {
+      if (a.snoozeUntil && a.snoozeUntil <= now.getTime() - 15 * 60000) { a.snoozeUntil = null; changed = true; }
+      if (a.enabled && a.date && !C.nextTrigger(a, now)) { a.enabled = false; changed = true; }
+    });
+    if (changed) save();
+  }
+
+  /* ---------- boot ---------- */
+  load(); tidy(); applyTheme(); save();
+  showTab('alarm');
+  renderAll();
+  setInterval(tick, 1000);
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) { tick(); renderAll(); } syncWake(); });
+  document.addEventListener('pointerdown', function first() { unlockAudio(); }, { capture: true });
+  matchMedia('(prefers-color-scheme: light)').addEventListener && matchMedia('(prefers-color-scheme: light)').addEventListener('change', applyTheme);
+  window.addEventListener('storage', function (e) { if (e.key === KEY) { load(); restoreOutput(); renderAll(); } });
+  syncWake();
+  try { audio(); } catch (e) {}
+  restoreOutput();
+  state.alarms.forEach(function (a) { if (a.enabled) loadAnimal(a.sound).catch(function () {}); });
+  updateNotices();
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js?v=186', { updateViaCache: 'none' }).catch(function () {});
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,81 @@
+{
+  "revision": 186,
+  "processing": "Natural pitch; trimmed excerpts, short fades, loudness normalization -16 LUFS / -3 dBTP; strongest tiger roar compressed before normalization.",
+  "sounds": [
+    {
+      "file": "rooster.mp3",
+      "author": "Mike Koenig",
+      "source_page": "https://soundbible.com/1218-Rooster-Crow.html",
+      "license": "CC BY 3.0",
+      "license_url": "https://creativecommons.org/licenses/by/3.0/",
+      "source_sha256": "c7a74bd8a830ba156f8424c7d73cb3b237e2804db5df7cc68a9d02af194a3b4d",
+      "trim_start_seconds": 0,
+      "trim_duration_seconds": 2.04,
+      "filter": "highpass=f=60,lowpass=f=12000,afade=t=in:st=0:d=0.008,afade=t=out:st=1.95:d=0.09,loudnorm=I=-16:TP=-3:LRA=7:linear=true:measured_I=-11.81:measured_TP=0.08:measured_LRA=0.00:measured_thresh=-21.81:offset=0.01",
+      "sha256": "79955ac8bc64316383918d7f74c38942c94b986c5ee442a14bca574d9f43097c",
+      "duration_seconds": 2.037551,
+      "decoded_peak": 0.609234,
+      "rms_dbfs": -20.63
+    },
+    {
+      "file": "rooster-farm.mp3",
+      "author": "JarredGibb",
+      "source_page": "https://freesound.org/people/JarredGibb/sounds/233161/",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "source_sha256": "4339729afc75225819c82fb6aebd2a380c91f3949061a66aa47e2cac46ad550f",
+      "trim_start_seconds": 0.16,
+      "trim_duration_seconds": 2.1,
+      "filter": "highpass=f=60,lowpass=f=12000,afade=t=in:st=0:d=0.008,afade=t=out:st=2.0100000000000002:d=0.09,loudnorm=I=-16:TP=-3:LRA=7:linear=true:measured_I=-16.56:measured_TP=-6.88:measured_LRA=0.00:measured_thresh=-26.56:offset=-0.01",
+      "sha256": "0b23a7bb417c8a6de9b7923844a1a3778a2976a03dcaa8533934f40d76980ea2",
+      "duration_seconds": 2.142041,
+      "decoded_peak": 0.331054,
+      "rms_dbfs": -21.41
+    },
+    {
+      "file": "lion-roar.mp3",
+      "author": "Bidone",
+      "source_page": "https://freesound.org/people/Bidone/sounds/69572/",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "source_sha256": "1b6e4260bad31e3c690974cd61679c535bb29c9e42502675a51edea08c9d85c2",
+      "trim_start_seconds": 21.2,
+      "trim_duration_seconds": 6.9,
+      "filter": "highpass=f=60,lowpass=f=12000,afade=t=in:st=0:d=0.008,afade=t=out:st=6.8100000000000005:d=0.09,loudnorm=I=-16:TP=-3:LRA=7:linear=true:measured_I=-13.20:measured_TP=-3.56:measured_LRA=1.70:measured_thresh=-24.57:offset=-0.11",
+      "sha256": "63adfc333b4d173d7070145fa383fb9831c366a6486bc16b00e8357c3654a00c",
+      "duration_seconds": 6.948571,
+      "decoded_peak": 0.466713,
+      "rms_dbfs": -19.37
+    },
+    {
+      "file": "tiger-roar.mp3",
+      "author": "videog",
+      "source_page": "https://freesound.org/people/videog/sounds/149190/",
+      "license": "CC BY 4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "source_sha256": "71834940894b7bd2df2568fa5fc4ad8d6f452ba1af0e8122f7e13911ce5058b6",
+      "trim_start_seconds": 3.05,
+      "trim_duration_seconds": 3.85,
+      "filter": "highpass=f=60,lowpass=f=12000,acompressor=threshold=0.055:ratio=6:attack=8:release=120:makeup=2,afade=t=in:st=0:d=0.008,afade=t=out:st=3.7600000000000002:d=0.09,loudnorm=I=-16:TP=-3:LRA=7:linear=true:measured_I=-21.90:measured_TP=-8.53:measured_LRA=2.10:measured_thresh=-32.59:offset=-1.83",
+      "sha256": "61fca8e19f313eb586a4832fda59f513d95d5bfa35c3fbbbf23090f994d80b15",
+      "duration_seconds": 3.892245,
+      "decoded_peak": 0.685058,
+      "rms_dbfs": -19.25
+    },
+    {
+      "file": "tiger-growl.mp3",
+      "author": "schots",
+      "source_page": "https://freesound.org/people/schots/sounds/439280/",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "source_sha256": "b09c5db77b4fb00bd66b7cce12e2c8cd6b045a18f150cb53b49f85de9732970b",
+      "trim_start_seconds": 21.9,
+      "trim_duration_seconds": 6.8,
+      "filter": "highpass=f=60,lowpass=f=12000,afade=t=in:st=0:d=0.008,afade=t=out:st=6.71:d=0.09,loudnorm=I=-16:TP=-3:LRA=7:linear=true:measured_I=-17.83:measured_TP=-2.86:measured_LRA=1.40:measured_thresh=-28.10:offset=0.45",
+      "sha256": "1516ec0d63aeb5d0eca188d3b56f09b0beec71f3443cbb521049f77f53214703",
+      "duration_seconds": 6.844082,
+      "decoded_peak": 0.487433,
+      "rms_dbfs": -19.39
+    }
+  ]
+}
