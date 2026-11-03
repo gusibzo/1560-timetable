@@ -1,0 +1,17 @@
+{
+  "revision": 187,
+  "replaces": "lion-roar.mp3",
+  "sound_key": "lion",
+  "file": "lion-roar-v187.mp3",
+  "title": "Lion Roar",
+  "author": "Mike Koenig",
+  "source_page": "https://soundbible.com/1282-Lion-Roar.html",
+  "license": "CC BY 3.0",
+  "license_url": "https://creativecommons.org/licenses/by/3.0/",
+  "source_sha256": "be20e7e83b0074097d87337d36fd38ad2e14e18a5c090b487255c4e0eaac1444",
+  "sha256": "c5b834b7e79681f3dc2d6ce7a36ec5a696f32bd49966ca33efcac166f81e227a",
+  "processing": "Natural pitch, highpass 60 Hz, 6 ms opening fade, 50 ms closing fade, loudnorm -14 LUFS / -3 dBTP, MP3 192 kbps / 44100 Hz / stereo.",
+  "duration_seconds": 2.272653,
+  "decoded_peak": 0.6221135854721069,
+  "rms_dbfs": -17.219946818579487
+}
