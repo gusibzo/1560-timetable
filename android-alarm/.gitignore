@@ -1,0 +1,8 @@
+build/
+signing/
+*.apk
+*.idsig
+assets/
+__pycache__/
+*.pyc
+.rsync-tmp/
