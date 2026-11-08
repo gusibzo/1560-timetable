@@ -3,14 +3,19 @@
 팔천조 형님의 삼성 휴대폰에서 쓰기 위한 **실제 Android 설치 앱**입니다. 기존 웹 알람의 검정·노랑 화면과 동물 소리는 유지하면서, JavaScript 타이머를 Android `AlarmManager.setAlarmClock()` 예약으로 교체했습니다. 웹페이지를 띄우는 앱이 아닙니다.
 
 - 패키지: `kr.palcheonjo.alarm1560`
-- 버전: 1.0.0 (1), Android 8.0/API 26 이상, target/compile API 35
+- 버전: 1.0.1 (2), Android 8.0/API 26 이상, target/compile API 35
 - 인터넷, 계정, 광고, 위치, 마이크 권한 없음
+- 상단과 개별 알람에 남은 일·시간·분·초 표시, 화면을 보는 동안 1초마다 갱신
 - 별도 `USAGE_ALARM` 오디오: 이어폰 미디어 음량과 분리
 - 요일 반복, 특정 날짜, 한 번 알람, 14종 소리, 30초 점증, 진동
 - 잠금 화면 해제·다시 알림, 최대 3회 다시 알림, 동시 알람 순서 재생
 - 재부팅·시각·시간대 변경 시 OS 예약 복구, 직접 부팅 저장소 사용
 - 백업/복원 및 이전 1560 웹 알람 JSON 가져오기. 복원된 알람은 확인 후 직접 켜야 함
 - 최근 2분 이내 지연 예약 재복구, 최근 40개 알람 기록, 지난 일회성 알람은 자동으로 다음 날로 바꾸지 않고 표시
+
+## 1.0.0에서 업데이트
+
+1.0.1 APK를 눌러 **업데이트**로 설치하세요. 같은 패키지와 개인 서명키를 사용하므로 기존 알람·권한을 유지합니다. 기존 앱을 삭제할 필요가 없습니다. 남은 시간은 화면 표시용이고 실제 알람은 기존 Android 시스템 예약으로 울립니다. 화면을 벗어나면 표시 갱신은 멈추며 예약은 유지됩니다.
 
 ## 처음 설치할 때
 
@@ -43,7 +48,7 @@ export SIGNING_PASSWORD_FILE=/private/path/password.txt
 ./build.sh
 ```
 
-결과: `build/1560-alarm-M-1.0.0.apk`. 서명 별칭은 `alarm1560`입니다. 개인 배포용 릴리스 키로 서명합니다. **키/비밀번호를 이 저장소에 올리지 마세요.** 업데이트 APK는 같은 패키지와 같은 키를 사용하고 versionCode를 올려야 합니다. 개인 서명 백업은 APK와 별도로 보관합니다.
+결과: `build/1560-alarm-M-1.0.1.apk`. 서명 별칭은 `alarm1560`입니다. 개인 배포용 릴리스 키로 서명합니다. **키/비밀번호를 이 저장소에 올리지 마세요.** 업데이트 APK는 같은 패키지와 같은 키를 사용하고 versionCode를 올려야 합니다. 개인 서명 백업은 APK와 별도로 보관합니다.
 
 `prepare_assets.py`는 저장소의 `audio/alarms/`를 읽으므로 이 디렉터리를 포함한 전체 저장소에서 실행합니다. 원본·라이선스·변환 정보는 해당 디렉터리와 APK 내부 출처 화면에 있습니다. 생성된 음원과 빌드 파일은 Git에서 제외됩니다.
 
@@ -54,15 +59,17 @@ export SIGNING_PASSWORD_FILE=/private/path/password.txt
 ```bash
 java -jar "$ECJ_JAR" -17 -d build/host-tests src/kr/palcheonjo/alarm1560/AlarmTime.java tests/AlarmTimeTest.java
 java -cp build/host-tests kr.palcheonjo.alarm1560.AlarmTimeTest
+java -jar "$ECJ_JAR" -17 -d build/host-tests src/kr/palcheonjo/alarm1560/RemainingTime.java tests/RemainingTimeTest.java
+java -cp build/host-tests kr.palcheonjo.alarm1560.RemainingTimeTest
 ```
 
-일회성/과거 날짜, 요일 비트, 자정·연도 변경, 다시 알림, DST 간격을 포함한 15개 검증입니다.
+일회성/과거 날짜, 요일 비트, 자정·연도 변경, 다시 알림, DST 간격을 포함한 15개 검증입니다. 남은 시간은 별도 16개 검증으로 초 단위 올림, 분·시간·날짜 경계 및 경과 표시를 확인합니다.
 
 Android 기기 시험은 **테스트용 에뮬레이터에서만** 실행합니다. 해당 앱의 테스트 데이터가 바뀝니다.
 
 ```bash
 ./tests/build-device-test.sh
-adb install -r build/1560-alarm-M-1.0.0.apk
+adb install -r build/1560-alarm-M-1.0.1.apk
 adb install -r build/device-test.apk
 adb shell pm grant kr.palcheonjo.alarm1560 android.permission.POST_NOTIFICATIONS
 adb shell appops set kr.palcheonjo.alarm1560 USE_FULL_SCREEN_INTENT allow

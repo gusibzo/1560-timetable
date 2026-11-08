@@ -1,3 +1,24 @@
+# 1.0.1 verification — 2026-11-08 KST
+
+Installer: `1560-alarm-M-1.0.1.apk`, versionCode 2.
+
+SHA-256: `02b9e9a7e280220b38e74849f3d1837656ef6d8d7fda0bf4e730f98cd656794d`
+
+The main screen now shows remaining time above the alarm list and under each enabled alarm. Display labels update once per second while the screen is visible. Hours/minutes are used for long waits and minutes/seconds for waits under one hour. Reaching the target displays “알람 시간입니다”.
+
+The one-second refresh only changes TextView text, so switches and scrolling are not rebuilt each second. The UI timer stops onPause and resumes with current wall time onResume. Android alarm delivery, audio playback, permissions and stored alarm data are unchanged.
+
+Passed for this update:
+- Full API 35 compilation, D8 conversion, alignment and APK v2/v3 signature verification.
+- Signing certificate matches the previously delivered 1.0.0 APK; package unchanged and versionCode increased from 1 to 2 for an in-place update.
+- 15 existing wall-clock scheduling checks and 16 countdown checks, including millisecond rounding, expired targets and second/minute/hour/day boundaries.
+- Archive CRC and 14 uncompressed audio assets.
+- Source review confirms Engine, AlarmReceiver, AlarmService and AlarmAudio are unchanged.
+
+The new countdown UI has not been run on a device in this update. The Android 35 integration and window-render checks below belong to 1.0.0 and were not repeated for this display-only change. A two-minute phone check after updating remains appropriate.
+
+---
+
 # 1.0.0 verification — 2026-11-08 KST
 
 Installer: `1560-alarm-M-1.0.0.apk`

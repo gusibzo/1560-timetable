@@ -17,6 +17,33 @@ import org.json.*;
 
 public final class MainActivity extends Activity {
   private LinearLayout body;
+  private final List<RemainingLabel> remainingLabels = new ArrayList<>();
+
+  private static final class RemainingLabel {
+    final TextView view;
+    final long at;
+
+    RemainingLabel(TextView view, long at) {
+      this.view = view;
+      this.at = at;
+    }
+  }
+
+  private TextView remainingLabel(long at, int size) {
+    TextView view =
+        Ui.bold(this, RemainingTime.format(System.currentTimeMillis(), at), size, Ui.GOLD);
+    remainingLabels.add(new RemainingLabel(view, at));
+    return view;
+  }
+
+  private void updateRemainingTimes() {
+    long now = System.currentTimeMillis();
+    for (RemainingLabel label : remainingLabels) {
+      String text = RemainingTime.format(now, label.at);
+      if (!text.contentEquals(label.view.getText())) label.view.setText(text);
+    }
+  }
+
   private final Handler handler = new Handler(Looper.getMainLooper());
   private final BroadcastReceiver changes =
       new BroadcastReceiver() {
@@ -27,8 +54,9 @@ public final class MainActivity extends Activity {
   private final Runnable refresh =
       new Runnable() {
         public void run() {
-          render();
-          handler.postDelayed(this, 30_000);
+          // Keep the switches and scroll position stable while the countdown changes.
+          updateRemainingTimes();
+          handler.postDelayed(this, 1000 - System.currentTimeMillis() % 1000);
         }
       };
   private boolean registered;
@@ -66,6 +94,7 @@ public final class MainActivity extends Activity {
       registered = true;
     }
     Engine.reconcile(this, false);
+    render();
     refresh.run();
     if (Engine.active(this) != null) {
       startForegroundService(new Intent(this, AlarmService.class));
@@ -94,6 +123,7 @@ public final class MainActivity extends Activity {
 
   private void render() {
     if (body == null) return;
+    remainingLabels.clear();
     body.removeAllViews();
     List<Alarm> list = Engine.alarms(this);
     long now = System.currentTimeMillis(), next = 0;
@@ -105,10 +135,16 @@ public final class MainActivity extends Activity {
         if (next == 0 || at < next) next = at;
       }
     }
-    body.addView(Ui.bold(this, next == 0 ? "켜진 알람이 없습니다" : Ui.date(next), 30, Ui.WHITE));
+    if (next == 0) body.addView(Ui.bold(this, "켜진 알람이 없습니다", 30, Ui.WHITE));
+    else body.addView(remainingLabel(next, 28));
     body.addView(
         Ui.text(
-            this, next == 0 ? "아래에서 알람을 추가하거나 켜 주세요." : "다음 알람 · " + count + "개 예약됨", 17, Ui.GRAY));
+            this,
+            next == 0
+                ? "아래에서 알람을 추가하거나 켜 주세요."
+                : "다음 알람 · " + Ui.date(next) + " · " + count + "개 예약됨",
+            17,
+            Ui.GRAY));
     boolean ready = Engine.exactAllowed(this) && notifications() && fullScreen();
     LinearLayout status = Ui.card(this);
     status.addView(
@@ -138,8 +174,9 @@ public final class MainActivity extends Activity {
       card.addView(line);
       TextView time = Ui.bold(this, Ui.time(a), 50, on ? Ui.WHITE : Ui.GRAY);
       card.addView(time);
-      card.addView(Ui.text(this, Ui.dayDescription(a), 17, Ui.GRAY));
       long at = Engine.scheduled(this, a.id);
+      if (on && at > 0) card.addView(remainingLabel(at, 20));
+      card.addView(Ui.text(this, Ui.dayDescription(a), 17, Ui.GRAY));
       String detail =
           on
               ? (at > 0
@@ -147,7 +184,7 @@ public final class MainActivity extends Activity {
                   : "예약 권한을 확인해 주세요")
               : "알람 꺼짐";
       if (a.missedAt > 0) detail = "예약 시간 경과 · " + Ui.date(a.missedAt) + " · 다시 켜 주세요";
-      card.addView(Ui.text(this, detail, 16, on || a.missedAt > 0 ? Ui.GOLD : Ui.GRAY));
+      card.addView(Ui.text(this, detail, 16, a.missedAt > 0 || (on && at == 0) ? Ui.GOLD : Ui.GRAY));
       Button edit = Ui.button(this, "알람 수정", false);
       card.addView(edit);
       edit.setOnClickListener(v -> edit(a.id));
@@ -307,13 +344,13 @@ public final class MainActivity extends Activity {
               break;
             case 5:
               new AlertDialog.Builder(this)
-                  .setTitle("1560 알람 M · 1.0.0")
+                  .setTitle("1560 알람 M · 1.0.1")
                   .setMessage(
                       "팔천조 형님을 위한 휴대폰 알람\n\n"
                           + "인터넷 · 계정 없이 휴대폰 안에서 작동합니다.\n"
                           + "알람 시간은 안드로이드 시스템에 예약합니다.\n"
                           + "처음 설치한 뒤 2분 후 알람을 만들어 화면을 잠그고 시험해 주세요.\n\n"
-                          + "개인용 첫 설치 버전입니다. 실제 휴대폰 시험이 필요합니다.")
+                          + "개인용 앱입니다. 실제 휴대폰에서 알람 시험이 필요합니다.")
                   .setPositiveButton("확인", null)
                   .show();
               break;
