@@ -3,4 +3,5 @@
  <application android:label="1560 Alarm device tests"/>
  <instrumentation android:name="kr.palcheonjo.alarm1560.tests.DeviceTest" android:targetPackage="kr.palcheonjo.alarm1560" android:functionalTest="true"/>
 <instrumentation android:name="kr.palcheonjo.alarm1560.tests.ScreenTest" android:targetPackage="kr.palcheonjo.alarm1560" android:functionalTest="true"/>
+<instrumentation android:name="kr.palcheonjo.alarm1560.tests.PhotoUiTest" android:targetPackage="kr.palcheonjo.alarm1560" android:functionalTest="true"/>
 </manifest>

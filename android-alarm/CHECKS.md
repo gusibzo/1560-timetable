@@ -1,3 +1,25 @@
+# 1.0.2 verification — 2026-11-08 KST
+
+Installer: `1560-alarm-M-1.0.2.apk`, versionCode 3.
+
+SHA-256: `49ec19ad1da3a6a08d2101555f8d34f08611fc6e2a90a0a2f0569104efed7aaa`
+
+Main screen rebuilt to match the supplied reference: black rounded cards, large time text, large round switches, top sort/delete/menu controls, centered yellow clock-plus button and bottom Alarm/More tabs. Live countdown labels remain. Cards open the editor. More contains the existing settings and backup features.
+
+The two reference times (11:20 and 14:11) are added once, disabled, only when the corresponding time is absent. Existing alarm IDs and settings remain intact; deleting a reference alarm later does not re-add it.
+
+Validation:
+- 15 scheduling and 16 countdown host checks passed.
+- 24 Android 29 UI checks passed: existing alarm preservation, disabled reference times, no duplication after relaunch, card-to-editor navigation, real switch state changes, live countdown ticks, bottom tabs, floating add and cancellation of a selected deletion without data loss.
+- Final label alignment and compact banner received a separate native-window render pass on the final signed APK. Main, More and editor windows rendered successfully and were visually inspected.
+- No AndroidRuntime crash in the final window test.
+- Full API 35 build and APK v2/v3 signature verification passed. Certificate matches 1.0.1; package unchanged and versionCode increased for in-place updating.
+- APK archive/audio integrity checked. Engine, AlarmReceiver, AlarmService and AlarmAudio remain unchanged.
+
+These are software-emulator checks, not a physical Samsung S25 FE / Android 17 test. The Android 35 alarm/audio integration checks below belong to 1.0.0. A phone check after updating is still appropriate.
+
+---
+
 # 1.0.1 verification — 2026-11-08 KST
 
 Installer: `1560-alarm-M-1.0.1.apk`, versionCode 2.

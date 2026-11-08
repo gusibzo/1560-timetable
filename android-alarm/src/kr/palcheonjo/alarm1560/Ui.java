@@ -78,6 +78,10 @@ final class Ui {
   }
 
   static void screen(Activity a, View content) {
+    screen(a, content, 18);
+  }
+
+  static void screen(Activity a, View content, int sidePadding) {
     a.getWindow().setStatusBarColor(Color.BLACK);
     a.getWindow().setNavigationBarColor(Color.BLACK);
     content.setBackgroundColor(Color.BLACK);
@@ -88,12 +92,13 @@ final class Ui {
             android.graphics.Insets i =
                 insets.getInsets(
                     WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
-            v.setPadding(dp(a, 18) + i.left, i.top, dp(a, 18) + i.right, i.bottom);
+            v.setPadding(
+                dp(a, sidePadding) + i.left, i.top, dp(a, sidePadding) + i.right, i.bottom);
           } else
             v.setPadding(
-                dp(a, 18) + insets.getSystemWindowInsetLeft(),
+                dp(a, sidePadding) + insets.getSystemWindowInsetLeft(),
                 insets.getSystemWindowInsetTop(),
-                dp(a, 18) + insets.getSystemWindowInsetRight(),
+                dp(a, sidePadding) + insets.getSystemWindowInsetRight(),
                 insets.getSystemWindowInsetBottom());
           return insets;
         });

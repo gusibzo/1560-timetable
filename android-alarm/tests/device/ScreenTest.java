@@ -56,6 +56,14 @@ public final class ScreenTest extends Instrumentation {
           startActivitySync(
               new Intent(c, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
       capture(main, "qa-native-list.png");
+      View more = main.getWindow().getDecorView().findViewWithTag("main-tab-more");
+      if (more != null) {
+        runOnMainSync(more::performClick);
+        capture(main, "qa-native-more.png");
+        View alarms = main.getWindow().getDecorView().findViewWithTag("main-tab-alarms");
+        runOnMainSync(alarms::performClick);
+        waitForIdleSync();
+      }
       Alarm first = Engine.alarms(c).get(0);
       Activity edit =
           startActivitySync(
