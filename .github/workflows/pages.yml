@@ -22,12 +22,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Prepare Rev188 site
+      - name: Prepare Rev189 site
         shell: bash
         run: |
           mkdir -p _site
           rsync -a --exclude '.git' --exclude '_site' ./ _site/
-          python3 tools/build_rev188.py _site
+          python3 tools/build_rev189.py _site
       - name: Refresh public KMA observations
         run: python3 tools/fetch_kma_weather.py _site/weather/kma.json
       - name: Include weather in the opening page
@@ -36,7 +36,7 @@ jobs:
         shell: bash
         run: |
           for timetable_tz in Asia/Seoul UTC America/Los_Angeles; do
-            TZ="$timetable_tz" node tools/test_rev141.mjs _site 188
+            TZ="$timetable_tz" node tools/test_rev141.mjs _site 189
           done
           node tools/test_rev156.mjs _site
           node tools/test_rev160.mjs _site
@@ -55,6 +55,7 @@ jobs:
           node tools/test_rev185.mjs _site
           node tools/test_rev186.mjs _site
           node tools/test_rev188.mjs _site
+          node tools/test_rev189.mjs _site
           python3 tools/test_kma_weather.py
       - name: Configure Pages
         uses: actions/configure-pages@v5

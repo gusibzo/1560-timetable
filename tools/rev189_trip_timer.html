@@ -1,0 +1,127 @@
+<style id="rev189-trip-timer-style">
+#tripTimer{margin:9px 0 0;padding:10px 12px;border:2px solid #aac3d9;border-radius:17px;background:#122b49;color:#fff;box-shadow:0 3px 8px #1637541c}
+#tripTimer .trip-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px;font-size:12px;font-weight:800;color:#c7dbed}
+#tripTimer .trip-controls{display:grid;grid-template-columns:minmax(65px,1fr) minmax(0,1.8fr) minmax(65px,1fr);align-items:center;gap:9px}
+#tripTimer button{min-width:0;min-height:46px;padding:8px 4px;border:0;border-radius:11px;line-height:1.2;font-family:inherit;font-size:19px;font-weight:900;touch-action:manipulation;cursor:pointer}
+#tripDepart{background:#ffdf58;color:#122b49}
+#tripArrive{background:#a6eddd;color:#123d39}
+#tripTimer button:disabled{background:#334f6b;color:#b2c2d1;cursor:default}
+#tripTimer button:focus-visible{outline:3px solid #fff;outline-offset:3px}
+#tripTimer button:active:not(:disabled){transform:translateY(1px)}
+#tripElapsed{display:block;text-align:center;white-space:nowrap;font-size:clamp(22px,6.4vw,34px);font-weight:950;line-height:1.15;font-variant-numeric:tabular-nums;letter-spacing:-.6px;color:#fff}
+#tripTimer[data-state="running"] #tripElapsed{color:#ffdf58}
+#tripTimer .trip-times{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;font-size:12px;line-height:1.3;color:#c7dbed;font-variant-numeric:tabular-nums}
+#tripTimer .trip-times>span{white-space:nowrap}
+#tripTimer .trip-times>span:last-child{text-align:right}
+#tripTimer .trip-times time{color:#fff;font-weight:800}
+#tripStorageNote{margin-top:6px;font-size:11px;color:#ffdf58}
+@media(max-width:360px){#tripTimer{padding:9px 8px}#tripTimer .trip-controls{gap:6px}#tripTimer button{font-size:17px}#tripTimer .trip-times{font-size:11px}}
+</style>
+<section id="tripTimer" data-state="idle" aria-label="출발·도착 운행 타이머">
+  <div class="trip-heading"><span>운행 타이머</span><span id="tripStatus" role="status">출발 대기</span></div>
+  <div class="trip-controls">
+    <button id="tripDepart" type="button">출발</button>
+    <output id="tripElapsed" role="timer" aria-label="운행 경과 시간" aria-live="off">00:00:00</output>
+    <button id="tripArrive" type="button" disabled>도착</button>
+  </div>
+  <div class="trip-times"><span>출발 <time id="tripDepartTime">--:--:--</time></span><span>도착 <time id="tripArriveTime">--:--:--</time></span></div>
+  <p id="tripStorageNote" role="status" hidden>저장할 수 없어 이 화면에서만 유지됩니다.</p>
+</section>
+<script id="rev189-trip-timer">
+/* Use saved timestamps rather than counting interval callbacks after page suspension. */
+(() => {
+  'use strict';
+  const key = 'bus1560-trip-timer-v1';
+  const panel = document.getElementById('tripTimer');
+  const depart = document.getElementById('tripDepart');
+  const arrive = document.getElementById('tripArrive');
+  const elapsed = document.getElementById('tripElapsed');
+  const status = document.getElementById('tripStatus');
+  const departTime = document.getElementById('tripDepartTime');
+  const arriveTime = document.getElementById('tripArriveTime');
+  const storageNote = document.getElementById('tripStorageNote');
+  let trip = null;
+  let persistent = true;
+  const pad = n => String(n).padStart(2, '0');
+  const validTime = n => Number.isSafeInteger(n) && n > 0 && n <= 8640000000000000;
+
+  function read() {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return null;
+      let value;
+      try { value = JSON.parse(raw); } catch (_) { return null; }
+      if (!value || value.version !== 1 || !validTime(value.startedAt)) return null;
+      if (value.arrivedAt !== null && (!validTime(value.arrivedAt) || value.arrivedAt < value.startedAt)) return null;
+      return {version:1, startedAt:value.startedAt, arrivedAt:value.arrivedAt};
+    } catch (_) {
+      persistent = false;
+      return trip;
+    }
+  }
+
+  function save() {
+    try { localStorage.setItem(key, JSON.stringify(trip)); }
+    catch (_) { persistent = false; }
+  }
+
+  function koreanDate(at) { return new Date(at + 9 * 60 * 60 * 1000); }
+  function stamp(at) {
+    const d = koreanDate(at);
+    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`;
+  }
+  function showTime(node, at, now) {
+    if (at === null) {
+      node.textContent = '--:--:--';
+      node.removeAttribute('datetime');
+      node.removeAttribute('title');
+      return;
+    }
+    const d = koreanDate(at);
+    const clock = `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
+    node.textContent = (stamp(at) === stamp(now) ? '' : `${d.getUTCMonth()+1}/${d.getUTCDate()} `) + clock;
+    node.setAttribute('datetime', new Date(at).toISOString());
+    node.title = `${stamp(at)} ${clock} (한국 시간)`;
+  }
+
+  function render() {
+    const now = Date.now();
+    const running = trip !== null && trip.arrivedAt === null;
+    const seconds = trip ? Math.floor(Math.max(0, (running ? now : trip.arrivedAt) - trip.startedAt) / 1000) : 0;
+    elapsed.textContent = `${pad(Math.floor(seconds/3600))}:${pad(Math.floor(seconds/60)%60)}:${pad(seconds%60)}`;
+    panel.dataset.state = trip === null ? 'idle' : running ? 'running' : 'arrived';
+    status.textContent = trip === null ? '출발 대기' : running ? '운행 중' : '운행 완료';
+    depart.disabled = running;
+    depart.textContent = trip && !running ? '새 출발' : '출발';
+    arrive.disabled = !running;
+    showTime(departTime, trip ? trip.startedAt : null, now);
+    showTime(arriveTime, trip ? trip.arrivedAt : null, now);
+    storageNote.hidden = persistent;
+  }
+
+  depart.addEventListener('click', () => {
+    // Ignore repeated taps so they cannot move the actual departure time.
+    if (trip && trip.arrivedAt === null) return;
+    trip = {version:1, startedAt:Date.now(), arrivedAt:null};
+    save();
+    render();
+  });
+  arrive.addEventListener('click', () => {
+    if (!trip || trip.arrivedAt !== null) return;
+    trip.arrivedAt = Math.max(trip.startedAt, Date.now());
+    save();
+    render();
+  });
+  function restore() {
+    if (persistent) trip = read();
+    render();
+  }
+  window.addEventListener('pageshow', restore);
+  window.addEventListener('storage', event => {
+    if (event.key === key || event.key === null) restore();
+  });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) restore(); });
+  setInterval(() => { if (!document.hidden) render(); }, 1000);
+  restore();
+})();
+</script>
