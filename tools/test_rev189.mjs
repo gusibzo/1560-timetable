@@ -3,6 +3,7 @@ import {strict as assert} from 'node:assert';
 import vm from 'node:vm';
 
 const html = readFileSync((process.argv[2] || '_site') + '/index.html', 'utf8');
+const core = html.match(/<script id="trip-records-core">([\s\S]*?)<\/script>/)[1];
 const code = html.match(/<script id="rev189-trip-timer">([\s\S]*?)<\/script>/)[1];
 assert.equal((html.match(/id="tripTimer"/g) || []).length, 1);
 assert.ok(html.indexOf('id="tripTimer"') > html.indexOf('id="roadTrafficBtn"'));
@@ -21,7 +22,7 @@ function boot(storage, initial = base, blocked = false) {
   };
   class Clock extends Date { static now() { return now; } }
   const doc = {hidden:false, getElementById:node, addEventListener(name, cb) { documentEvents[name] = cb; }};
-  vm.runInNewContext(code, {Date:Clock, document:doc,
+  vm.runInNewContext(core + '\n' + code, {Date:Clock, document:doc,
     window:{addEventListener(name, cb) { windowEvents[name] = cb; }},
     localStorage:{getItem(k) { if (blocked) throw Error('blocked'); return storage[k] ?? null; },
       setItem(k, value) { if (blocked) throw Error('blocked'); storage[k] = value; }},
@@ -58,6 +59,7 @@ assert.equal(app.elapsed(), '01:00:01');
 assert.equal(app.node('tripTimer').dataset.state, 'arrived');
 assert.equal(app.node('tripArrive').disabled, true);
 const stopped = storage[key];
+assert.deepEqual(JSON.parse(stopped).history, [{startedAt:base, arrivedAt:base + 3601234}]);
 app.at(base + 7200000); app.click('tripArrive');
 assert.equal(app.elapsed(), '01:00:01'); assert.equal(storage[key], stopped);
 app = boot(storage, base + 8000000);
@@ -66,6 +68,18 @@ assert.equal(app.node('tripDepart').textContent, '새 출발');
 app.click('tripDepart');
 assert.equal(app.elapsed(), '00:00:00');
 assert.equal(JSON.parse(storage[key]).arrivedAt, null);
+assert.deepEqual(JSON.parse(storage[key]).history, JSON.parse(stopped).history);
+app.at(base + 8060000); app.click('tripArrive');
+assert.deepEqual(JSON.parse(storage[key]).history, [
+  {startedAt:base + 8000000, arrivedAt:base + 8060000},
+  {startedAt:base, arrivedAt:base + 3601234}
+]);
+
+// A previously completed timer belongs in the history after a new departure.
+const legacy = {[key]:JSON.stringify({version:1, startedAt:base, arrivedAt:base + 25000})};
+const migrated = boot(legacy, base + 40000);
+migrated.click('tripDepart');
+assert.deepEqual(JSON.parse(legacy[key]).history, [{startedAt:base, arrivedAt:base + 25000}]);
 
 // A second tab and back-forward restoration show the latest persisted state.
 storage[key] = JSON.stringify({version:1, startedAt:base, arrivedAt:base + 25000});
