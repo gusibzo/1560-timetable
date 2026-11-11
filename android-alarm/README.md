@@ -3,9 +3,10 @@
 팔천조 형님의 삼성 휴대폰에서 쓰기 위한 **실제 Android 설치 앱**입니다. 기존 웹 알람의 검정·노랑 화면과 동물 소리는 유지하면서, JavaScript 타이머를 Android `AlarmManager.setAlarmClock()` 예약으로 교체했습니다. 웹페이지를 띄우는 앱이 아닙니다.
 
 - 패키지: `kr.palcheonjo.alarm1560`
-- 버전: 1.0.3 (4), Android 8.0/API 26 이상, target/compile API 35
+- 버전: 1.0.4 (5), Android 8.0/API 26 이상, target/compile API 35
 - 인터넷, 계정, 광고, 위치, 마이크 권한 없음
-- 사진과 같은 큰 시간 카드, 둥근 스위치, 노란 원형 추가 버튼, 하단 알람·더보기 탭
+- 왼쪽 알람 예약과 오른쪽 타이머의 독립 세로 스크롤, 하단 알람·더보기 탭
+- 출발부터 도착까지 경과 시간 측정, 최근 30건의 타이머 기록을 휴대폰에 저장
 - 카드 누르기로 수정, 카드 ⋮ 메뉴, 정렬 메뉴와 확인 후 선택 삭제
 - 상단과 개별 알람에 남은 일·시간·분·초 표시, 화면을 보는 동안 1초마다 갱신
 - 별도 `USAGE_ALARM` 오디오: 이어폰 미디어 음량과 분리
@@ -15,9 +16,9 @@
 - 백업/복원 및 이전 1560 웹 알람 JSON 가져오기. 복원된 알람은 확인 후 직접 켜야 함
 - 최근 2분 이내 지연 예약 재복구, 최근 40개 알람 기록, 지난 일회성 알람은 자동으로 다음 날로 바꾸지 않고 표시
 
-## 1.0.0~1.0.2에서 업데이트
+## 1.0.0~1.0.3에서 업데이트
 
-1.0.3 APK를 눌러 **업데이트**로 설치하세요. 같은 패키지와 개인 서명키를 사용하므로 기존 알람·권한을 유지합니다. 기존 앱을 삭제할 필요가 없습니다. 남은 시간은 화면 표시용이고 실제 알람은 기존 Android 시스템 예약으로 울립니다. 화면을 벗어나면 표시 갱신은 멈추며 예약은 유지됩니다.
+1.0.4 APK를 눌러 **업데이트**로 설치하세요. 같은 패키지와 개인 서명키를 사용하므로 기존 알람·권한을 유지합니다. 기존 앱을 삭제할 필요가 없습니다. 남은 시간은 화면 표시용이고 실제 알람은 기존 Android 시스템 예약으로 울립니다. 화면을 벗어나면 표시 갱신은 멈추며 예약은 유지됩니다.
 
 ## 사진의 시간과 화면
 
@@ -58,7 +59,7 @@ export SIGNING_PASSWORD_FILE=/private/path/password.txt
 ./build.sh
 ```
 
-결과: `build/1560-alarm-M-1.0.3.apk`. 서명 별칭은 `alarm1560`입니다. 개인 배포용 릴리스 키로 서명합니다. **키/비밀번호를 이 저장소에 올리지 마세요.** 업데이트 APK는 같은 패키지와 같은 키를 사용하고 versionCode를 올려야 합니다. 개인 서명 백업은 APK와 별도로 보관합니다.
+결과: `build/1560-alarm-M-1.0.4.apk`. 서명 별칭은 `alarm1560`입니다. 개인 배포용 릴리스 키로 서명합니다. **키/비밀번호를 이 저장소에 올리지 마세요.** 업데이트 APK는 같은 패키지와 같은 키를 사용하고 versionCode를 올려야 합니다. 개인 서명 백업은 APK와 별도로 보관합니다.
 
 `prepare_assets.py`는 저장소의 `audio/alarms/`를 읽으므로 이 디렉터리를 포함한 전체 저장소에서 실행합니다. 원본·라이선스·변환 정보는 해당 디렉터리와 APK 내부 출처 화면에 있습니다. 생성된 음원과 빌드 파일은 Git에서 제외됩니다.
 
@@ -79,7 +80,7 @@ Android 기기 시험은 **테스트용 에뮬레이터에서만** 실행합니�
 
 ```bash
 ./tests/build-device-test.sh
-adb install -r build/1560-alarm-M-1.0.3.apk
+adb install -r build/1560-alarm-M-1.0.4.apk
 adb install -r build/device-test.apk
 adb shell pm grant kr.palcheonjo.alarm1560 android.permission.POST_NOTIFICATIONS
 adb shell appops set kr.palcheonjo.alarm1560 USE_FULL_SCREEN_INTENT allow

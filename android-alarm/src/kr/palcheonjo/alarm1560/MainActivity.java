@@ -18,6 +18,8 @@ import org.json.*;
 public final class MainActivity extends Activity {
   private LinearLayout body, alarmTab, moreTab;
   private ScrollView scroll;
+  private TripTimerPane timerPane;
+  private View paneDivider;
   private FrameLayout floating;
   private TextView back;
   private View sortButton, deleteButton;
@@ -63,7 +65,8 @@ public final class MainActivity extends Activity {
             String text = RemainingTime.format(now, label.at);
             if (!text.contentEquals(label.view.getText())) label.view.setText(text);
           }
-          handler.postDelayed(this, 1000 - System.currentTimeMillis() % 1000);
+          timerPane.refresh();
+          handler.postDelayed(this, 1000 - SystemClock.elapsedRealtime() % 1000);
         }
       };
 
@@ -105,12 +108,22 @@ public final class MainActivity extends Activity {
         new LinearLayout.LayoutParams(Ui.dp(this, 48), Ui.dp(this, 48)));
     column.addView(toolbar, new LinearLayout.LayoutParams(-1, Ui.dp(this, 64)));
     scroll = new ScrollView(this);
+    scroll.setTag("alarm-reservations");
     scroll.setFillViewport(true);
     scroll.setClipToPadding(false);
     body = Ui.column(this);
-    body.setPadding(Ui.dp(this, 13), Ui.dp(this, 10), Ui.dp(this, 13), Ui.dp(this, 100));
+    body.setPadding(Ui.dp(this, 9), Ui.dp(this, 8), Ui.dp(this, 9), Ui.dp(this, 84));
     scroll.addView(body);
-    column.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
+    FrameLayout alarmPane = new FrameLayout(this);
+    alarmPane.addView(scroll, new FrameLayout.LayoutParams(-1, -1));
+    LinearLayout panes = Ui.row(this);
+    panes.addView(alarmPane, new LinearLayout.LayoutParams(0, -1, 1));
+    paneDivider = new View(this);
+    paneDivider.setBackgroundColor(0xff3e3e42);
+    panes.addView(paneDivider, new LinearLayout.LayoutParams(Ui.dp(this, 1), -1));
+    timerPane = new TripTimerPane(this);
+    panes.addView(timerPane, new LinearLayout.LayoutParams(0, -1, 1));
+    column.addView(panes, new LinearLayout.LayoutParams(-1, 0, 1));
     LinearLayout navigation = Ui.row(this);
     navigation.setGravity(Gravity.CENTER);
     android.graphics.drawable.GradientDrawable navShape = Ui.shape(0xff202022, 0);
@@ -162,13 +175,13 @@ public final class MainActivity extends Activity {
     floating.setFocusable(true);
     floatingArt = new AlarmArt(this, "clock-plus", android.graphics.Color.BLACK);
     FrameLayout.LayoutParams art =
-        new FrameLayout.LayoutParams(Ui.dp(this, 42), Ui.dp(this, 42), Gravity.CENTER);
+        new FrameLayout.LayoutParams(Ui.dp(this, 34), Ui.dp(this, 34), Gravity.CENTER);
     floating.addView(floatingArt, art);
     FrameLayout.LayoutParams add =
         new FrameLayout.LayoutParams(
-            Ui.dp(this, 76), Ui.dp(this, 76), Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
-    add.bottomMargin = Ui.dp(this, NAV_HEIGHT + 16);
-    root.addView(floating, add);
+            Ui.dp(this, 60), Ui.dp(this, 60), Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
+    add.bottomMargin = Ui.dp(this, 12);
+    alarmPane.addView(floating, add);
     floating.setOnClickListener(
         v -> {
           if (selecting) confirmSelection();
@@ -198,6 +211,7 @@ public final class MainActivity extends Activity {
     }
     Engine.reconcile(this, false);
     render();
+    timerPane.restore();
     refresh.run();
     if (Engine.active(this) != null) {
       startForegroundService(new Intent(this, AlarmService.class));
@@ -255,8 +269,10 @@ public final class MainActivity extends Activity {
         new AlarmArt(this, selecting ? "trash" : "clock-plus", android.graphics.Color.BLACK);
     floating.addView(
         floatingArt,
-        new FrameLayout.LayoutParams(Ui.dp(this, 42), Ui.dp(this, 42), Gravity.CENTER));
+        new FrameLayout.LayoutParams(Ui.dp(this, 34), Ui.dp(this, 34), Gravity.CENTER));
     floating.setContentDescription(selecting ? "선택한 알람 삭제" : "알람 추가");
+    timerPane.setVisibility(morePage ? View.GONE : View.VISIBLE);
+    paneDivider.setVisibility(morePage ? View.GONE : View.VISIBLE);
     if (morePage) {
       renderMore();
       return;
@@ -267,27 +283,22 @@ public final class MainActivity extends Activity {
       long at = Engine.scheduled(this, a.id);
       if (at > now && (next == 0 || at < next)) next = at;
     }
-    LinearLayout summary = Ui.row(this);
-    summary.setPadding(Ui.dp(this, 8), Ui.dp(this, 26), Ui.dp(this, 8), Ui.dp(this, 18));
-    summary.addView(
-        new AlarmArt(this, selecting ? "trash" : "clock", Ui.GRAY),
-        new LinearLayout.LayoutParams(Ui.dp(this, 38), Ui.dp(this, 38)));
-    LinearLayout heading = Ui.column(this);
-    heading.setPadding(Ui.dp(this, 12), 0, 0, 0);
+    TextView section = Ui.bold(this, "알람 예약", 18, Ui.GOLD);
+    if (Build.VERSION.SDK_INT >= 28) section.setAccessibilityHeading(true);
+    section.setPadding(Ui.dp(this, 5), Ui.dp(this, 8), 0, Ui.dp(this, 6));
+    body.addView(section);
     TextView title =
         selecting
-            ? Ui.bold(this, selected.size() + "개 선택", 28, Ui.WHITE)
-            : next == 0 ? Ui.bold(this, "알람 꺼짐", 28, Ui.WHITE) : remainingLabel(next, 28, Ui.WHITE);
+            ? Ui.bold(this, selected.size() + "개 선택", 20, Ui.WHITE)
+            : next == 0 ? Ui.bold(this, "알람 꺼짐", 20, Ui.WHITE) : remainingLabel(next, 20, Ui.WHITE);
     title.setTag("summary-countdown");
-    heading.addView(title);
-    heading.addView(
+    body.addView(title);
+    body.addView(
         Ui.text(
             this,
             selecting ? "삭제할 알람을 선택해 주세요" : next == 0 ? "켜진 알람이 없습니다" : "다음 알람 · " + Ui.date(next),
-            15,
+            13,
             Ui.GRAY));
-    summary.addView(heading, new LinearLayout.LayoutParams(0, -2, 1));
-    body.addView(summary);
     statusCard();
     sortAlarms(alarms, now);
     for (Alarm a : alarms) alarmCard(a, now);
@@ -296,7 +307,7 @@ public final class MainActivity extends Activity {
 
   private void statusCard() {
     boolean ready = Engine.exactAllowed(this) && notifications() && fullScreen();
-    String detail = "화면이 꺼져도 예약 · 별도 알람 음량";
+    String detail = "화면이 꺼져도 예약";
     if (!Engine.exactAllowed(this)) detail = "정확한 알람 권한을 허용해 주세요.";
     else if (!notifications()) detail = "알림을 허용해 주세요.";
     else if (!fullScreen()) detail = "잠금 화면 전체 표시를 허용해 주세요.";
@@ -305,18 +316,14 @@ public final class MainActivity extends Activity {
       detail = "휴대폰 알람 음량이 0입니다. 눌러서 조절하세요.";
     }
     LinearLayout card = Ui.row(this);
-    card.setPadding(Ui.dp(this, 14), Ui.dp(this, 10), Ui.dp(this, 8), Ui.dp(this, 10));
+    card.setPadding(Ui.dp(this, 10), Ui.dp(this, 6), Ui.dp(this, 5), Ui.dp(this, 6));
     card.setBackground(cardShape());
-    card.addView(
-        new AlarmArt(this, "phone", Ui.GRAY),
-        new LinearLayout.LayoutParams(Ui.dp(this, 18), Ui.dp(this, 26)));
     LinearLayout text = Ui.column(this);
-    text.setPadding(Ui.dp(this, 10), 0, 0, 0);
     TextView statusTitle =
         Ui.bold(
-            this, ready ? "휴대폰 알람으로 예약합니다" : "알람 권한 · 음량을 확인해 주세요", 16, ready ? Ui.WHITE : Ui.GOLD);
+            this, ready ? "휴대폰 알람 예약" : "알람 권한 · 음량", 14, ready ? Ui.WHITE : Ui.GOLD);
     statusTitle.setPadding(0, Ui.dp(this, 1), 0, Ui.dp(this, 1));
-    TextView statusDetail = Ui.text(this, detail, 14, Ui.GRAY);
+    TextView statusDetail = Ui.text(this, detail, 12, Ui.GRAY);
     statusDetail.setPadding(0, Ui.dp(this, 1), 0, Ui.dp(this, 1));
     text.addView(statusTitle);
     text.addView(statusDetail);
@@ -339,46 +346,23 @@ public final class MainActivity extends Activity {
   private void alarmCard(Alarm a, long now) {
     boolean on = a.enabled || a.snoozeUntil > now;
     long at = Engine.scheduled(this, a.id);
-    FrameLayout frame = new FrameLayout(this);
+    LinearLayout frame = Ui.column(this);
     frame.setBackground(cardShape());
-    frame.setMinimumHeight(Ui.dp(this, 184));
+    frame.setPadding(Ui.dp(this, 10), Ui.dp(this, 6), Ui.dp(this, 5), Ui.dp(this, 5));
     frame.setTag("alarm-card-" + a.id);
-    LinearLayout content = Ui.column(this);
-    content.setPadding(Ui.dp(this, 22), Ui.dp(this, 20), Ui.dp(this, 22), Ui.dp(this, 17));
     if (!a.label.isEmpty()) {
-      LinearLayout label = Ui.row(this);
-      label.setPadding(0, 0, Ui.dp(this, 75), 0);
-      label.addView(
-          new AlarmArt(this, "tag", on ? Ui.WHITE : Ui.GRAY),
-          new LinearLayout.LayoutParams(Ui.dp(this, 17), Ui.dp(this, 20)));
-      TextView name = Ui.bold(this, a.label, 17, on ? Ui.WHITE : Ui.GRAY);
-      name.setPadding(Ui.dp(this, 6), 0, 0, 0);
+      TextView name = Ui.bold(this, a.label, 13, on ? Ui.WHITE : Ui.GRAY);
       name.setSingleLine(true);
       name.setEllipsize(android.text.TextUtils.TruncateAt.END);
-      label.addView(name, new LinearLayout.LayoutParams(0, -2, 1));
-      content.addView(label);
-    } else {
-      Space spacer = new Space(this);
-      content.addView(spacer, new LinearLayout.LayoutParams(1, Ui.dp(this, 15)));
+      frame.addView(name);
     }
-    TextView time = Ui.bold(this, Ui.time(a), 56, on ? Ui.WHITE : 0xff89898e);
-    time.setPadding(0, Ui.dp(this, 4), 0, Ui.dp(this, 4));
-    time.setIncludeFontPadding(false);
+
+    LinearLayout controls = Ui.row(this);
+    TextView time = Ui.bold(this, Ui.time(a), 32, on ? Ui.WHITE : 0xff89898e);
+    time.setSingleLine(true);
+    time.setAutoSizeTextTypeUniformWithConfiguration(16, 32, 1, android.util.TypedValue.COMPLEX_UNIT_SP);
     time.setTag("alarm-time-" + a.id);
-    content.addView(time);
-    content.addView(Ui.bold(this, dayLabel(a), 18, Ui.GRAY));
-    TextView status;
-    if (on && at > 0) status = remainingLabel(at, 18, Ui.GOLD);
-    else
-      status =
-          Ui.bold(
-              this,
-              on ? "예약 권한을 확인해 주세요" : a.missedAt > 0 ? "예약 시간 경과 · 다시 켜 주세요" : "알람 꺼짐",
-              16,
-              on || a.missedAt > 0 ? Ui.GOLD : Ui.GRAY);
-    status.setPadding(0, Ui.dp(this, 3), Ui.dp(this, 38), Ui.dp(this, 3));
-    content.addView(status);
-    frame.addView(content, new FrameLayout.LayoutParams(-1, -2));
+    controls.addView(time, new LinearLayout.LayoutParams(0, Ui.dp(this, 48), 1));
     if (selecting) {
       CheckBox check = new CheckBox(this);
       check.setChecked(selected.contains(a.id));
@@ -389,28 +373,37 @@ public final class MainActivity extends Activity {
             else selected.remove(a.id);
             render();
           });
-      FrameLayout.LayoutParams p =
-          new FrameLayout.LayoutParams(
-              Ui.dp(this, 52), Ui.dp(this, 44), Gravity.TOP | Gravity.RIGHT);
-      p.setMargins(0, Ui.dp(this, 18), Ui.dp(this, 15), 0);
-      frame.addView(check, p);
+      controls.addView(check, new LinearLayout.LayoutParams(Ui.dp(this, 48), Ui.dp(this, 44)));
     } else {
       AlarmToggle toggle = new AlarmToggle(this, on);
       toggle.setTag("alarm-toggle-" + a.id);
       toggle.setContentDescription(Engine.title(a) + (on ? " 알람 끄기" : " 알람 켜기"));
       toggle.setOnClickListener(v -> toggle(a.id));
-      FrameLayout.LayoutParams p =
-          new FrameLayout.LayoutParams(
-              Ui.dp(this, 70), Ui.dp(this, 42), Gravity.TOP | Gravity.RIGHT);
-      p.setMargins(0, Ui.dp(this, 22), Ui.dp(this, 22), 0);
-      frame.addView(toggle, p);
-      View menu = iconButton("more", Ui.GRAY, Engine.title(a) + " 알람 메뉴", v -> alarmMenu(v, a));
-      FrameLayout.LayoutParams m =
-          new FrameLayout.LayoutParams(
-              Ui.dp(this, 46), Ui.dp(this, 46), Gravity.BOTTOM | Gravity.RIGHT);
-      m.setMargins(0, 0, Ui.dp(this, 10), Ui.dp(this, 8));
-      frame.addView(menu, m);
+      FrameLayout touchTarget = new FrameLayout(this);
+      touchTarget.addView(toggle, new FrameLayout.LayoutParams(Ui.dp(this, 47), Ui.dp(this, 29), Gravity.CENTER));
+      touchTarget.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+      touchTarget.setOnClickListener(v -> toggle.performClick());
+      controls.addView(touchTarget, new LinearLayout.LayoutParams(Ui.dp(this, 49), Ui.dp(this, 48)));
     }
+    frame.addView(controls);
+    frame.addView(Ui.text(this, dayLabel(a), 13, Ui.GRAY));
+
+    LinearLayout footer = Ui.row(this);
+    TextView status;
+    if (on && at > 0) status = remainingLabel(at, 13, Ui.GOLD);
+    else
+      status =
+          Ui.bold(
+              this,
+              on ? "예약 권한 확인" : a.missedAt > 0 ? "시간 경과 · 다시 켜기" : "알람 꺼짐",
+              13,
+              on || a.missedAt > 0 ? Ui.GOLD : Ui.GRAY);
+    footer.addView(status, new LinearLayout.LayoutParams(0, -2, 1));
+    if (!selecting) {
+      View menu = iconButton("more", Ui.GRAY, Engine.title(a) + " 알람 메뉴", v -> alarmMenu(v, a));
+      footer.addView(menu, new LinearLayout.LayoutParams(Ui.dp(this, 38), Ui.dp(this, 44)));
+    }
+    frame.addView(footer);
     frame.setContentDescription(Engine.title(a) + (selecting ? " 선택" : " 수정"));
     frame.setFocusable(true);
     frame.setOnClickListener(
@@ -706,7 +699,7 @@ public final class MainActivity extends Activity {
         break;
       case 5:
         new AlertDialog.Builder(this)
-            .setTitle("1560 알람 M · 1.0.3")
+            .setTitle("1560 알람 M · 1.0.4")
             .setMessage(
                 "팔천조 형님을 위한 휴대폰 알람\n\n"
                     + "인터넷 · 계정 없이 휴대폰 안에서 작동합니다.\n"

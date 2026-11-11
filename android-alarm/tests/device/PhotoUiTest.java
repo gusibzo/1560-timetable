@@ -110,6 +110,8 @@ public final class PhotoUiTest extends Instrumentation {
     Bundle out = new Bundle();
     try {
       context = getTargetContext();
+      context.createDeviceProtectedStorageContext()
+          .getSharedPreferences("trip-timer-v1", Context.MODE_PRIVATE).edit().clear().commit();
       for (Alarm a : Engine.alarms(context)) Engine.remove(context, a.id);
       for (int i = 0; i < 200 && Engine.active(context) != null; i++) Engine.finish(context, false);
       context
@@ -168,6 +170,22 @@ public final class PhotoUiTest extends Instrumentation {
       waitForIdleSync();
       launch();
       check(Engine.alarms(context).size() == count, "Reference times duplicated after relaunch");
+      stage("separate alarm and timer panes");
+      check(tagged("alarm-reservations") instanceof ScrollView, "Reservation scroll missing");
+      check(tagged("trip-timer") instanceof ScrollView, "Timer scroll missing");
+      check(tagged("alarm-reservations").getParent() != tagged("trip-timer").getParent(),
+          "Reservation and timer scroll must be independent");
+      click("trip-action");
+      check(((Button) tagged("trip-action")).getText().equals("도착"), "Trip did not start");
+      Thread.sleep(1200);
+      runOnMainSync(main::finish);
+      waitForIdleSync();
+      launch();
+      check(((Button) tagged("trip-action")).getText().equals("도착"), "Trip lost on relaunch");
+      check(!((TextView) tagged("trip-elapsed")).getText().equals("00:00:00"), "Timer did not tick");
+      click("trip-action");
+      check(((Button) tagged("trip-action")).getText().equals("출발"), "Trip did not finish");
+      check(((LinearLayout) tagged("trip-history")).getChildAt(0) instanceof LinearLayout, "Trip record missing");
       stage("bottom tabs and floating add button");
       click("main-tab-more");
       check(tagged("main-add").getVisibility() == View.GONE, "Add button must hide on More");

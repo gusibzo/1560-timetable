@@ -18,7 +18,7 @@ java -cp "$ANDROID_BUILD_TOOLS/lib/d8.jar" com.android.tools.r8.D8 --min-api 26 
 cp build/resources.apk build/unsigned.apk
 (cd build/dex && zip -q -j ../unsigned.apk classes*.dex)
 "$ANDROID_BUILD_TOOLS/zipalign" -f -p 4 build/unsigned.apk build/aligned.apk
-apk=build/1560-alarm-M-1.0.3.apk
+apk=build/1560-alarm-M-1.0.4.apk
 "$ANDROID_BUILD_TOOLS/apksigner" sign --ks "$SIGNING_STORE_FILE" --ks-key-alias alarm1560 --ks-pass "file:$SIGNING_PASSWORD_FILE" --out "$apk" build/aligned.apk
 "$ANDROID_BUILD_TOOLS/apksigner" verify --verbose "$apk"
 "$ANDROID_BUILD_TOOLS/aapt2" dump badging "$apk"

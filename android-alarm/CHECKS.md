@@ -1,3 +1,11 @@
+# 1.0.4 verification — 2026-11-11 KST
+
+Installer: `1560-alarm-M-1.0.4.apk`, versionCode 5.
+
+- API 35 release build and APK v2/v3 signature verification passed. The package and signing certificate match 1.0.3. All 14 alarm sound assets passed archive verification.
+- The 15 alarm scheduling checks and 16 remaining-time checks passed.
+- The device test APK compiles with checks for both scroll panes and a trip that continues across activity relaunch and appears in history. These checks await execution on an Android device.
+
 # 1.0.3 verification — 2026-11-11 KST
 
 Installer: `1560-alarm-M-1.0.3.apk`, versionCode 4.
