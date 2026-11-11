@@ -14,7 +14,6 @@ public final class EditActivity extends Activity {
   private Spinner sounds, snoozeMinutes;
   private SeekBar gain;
   private CheckBox ramp, vibrate, snooze;
-  private Switch enabled;
   private TextView dateLabel, time;
   private AlarmAudio preview;
   private Button previewButton;
@@ -40,6 +39,8 @@ public final class EditActivity extends Activity {
       } catch (Exception ignored) {
       }
     }
+    // Retain the enabled state that the former editor switch displayed by default.
+    alarm.enabled = alarm.enabled || alarm.snoozeUntil > System.currentTimeMillis();
     LinearLayout root = Ui.column(this);
     Ui.screen(this, root);
     root.addView(Ui.bold(this, id == null ? "알람 추가" : "알람 수정", 25, Ui.WHITE));
@@ -48,11 +49,6 @@ public final class EditActivity extends Activity {
     scroll.addView(form);
     root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
     LinearLayout first = Ui.card(this);
-    enabled = new Switch(this);
-    enabled.setText("알람 켜기");
-    enabled.setTextSize(20);
-    enabled.setChecked(alarm.enabled || alarm.snoozeUntil > System.currentTimeMillis());
-    first.addView(enabled);
     time = Ui.bold(this, Ui.time(alarm), 60, Ui.WHITE);
     first.addView(time);
     Button choose = Ui.button(this, "시간 선택", true);
@@ -254,7 +250,6 @@ public final class EditActivity extends Activity {
   private void readForm() {
     if (name == null) return;
     alarm.label = name.getText().toString().trim();
-    alarm.enabled = enabled.isChecked();
     alarm.days = mask();
     alarm.sound = Sounds.IDS[sounds.getSelectedItemPosition()];
     alarm.volume = gain.getProgress() + 10;

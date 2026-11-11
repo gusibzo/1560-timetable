@@ -1,3 +1,19 @@
+# 1.0.3 verification — 2026-11-11 KST
+
+Installer: `1560-alarm-M-1.0.3.apk`, versionCode 4.
+
+SHA-256: `ea5af2f76db7125e455f0158e9f9d892d12a9194117fc0516e6ee27f2a54335a`
+
+Removed the enable switch and its label from the alarm editor. Use the switch in the alarm list to control whether the alarm is active.
+
+- Compiled editor has no enable switch. Compiled main screen uses the alarm list toggle.
+- 15 scheduling and 16 countdown checks passed.
+- API 35 build, APK v2/v3 signature, alignment and archive integrity checks passed. All 14 audio assets are present.
+- The release certificate and package match 1.0.2. The increased version code supports an in-place update.
+- This version was verified by build and host checks. Device testing was not repeated.
+
+---
+
 # 1.0.2 verification — 2026-11-08 KST
 
 Installer: `1560-alarm-M-1.0.2.apk`, versionCode 3.

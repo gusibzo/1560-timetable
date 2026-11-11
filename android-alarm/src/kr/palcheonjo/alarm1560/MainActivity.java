@@ -706,7 +706,7 @@ public final class MainActivity extends Activity {
         break;
       case 5:
         new AlertDialog.Builder(this)
-            .setTitle("1560 알람 M · 1.0.2")
+            .setTitle("1560 알람 M · 1.0.3")
             .setMessage(
                 "팔천조 형님을 위한 휴대폰 알람\n\n"
                     + "인터넷 · 계정 없이 휴대폰 안에서 작동합니다.\n"
