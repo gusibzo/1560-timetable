@@ -1,0 +1,121 @@
+<style>
+.rev68-full-grid button.rev68-full-total{
+  display:block;
+  width:100%;
+  min-height:28px;
+  border:0;
+  border-radius:0;
+  background:#fff;
+  font-family:inherit;
+  cursor:pointer;
+  text-decoration:underline;
+  text-decoration-color:#9aabb3;
+  text-underline-offset:3px;
+}
+.rev68-full-grid button.rev68-full-total:focus-visible{outline:2px solid #177226;outline-offset:-2px}
+.attendance-hint{margin:6px 0 0;color:#52616c;font-size:11px}
+.attendance-edit{margin-top:8px;color:#17212a;font-size:13px}
+.attendance-edit label{display:block;font-weight:800}
+.attendance-edit-controls{display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-top:5px}
+.attendance-edit input,.attendance-edit button{
+  min-height:36px;
+  border:1px solid #c3ccd5;
+  border-radius:7px;
+  background:#fff;
+  color:#17212a;
+  font:inherit;
+  padding:4px 7px;
+  box-sizing:border-box;
+}
+.attendance-edit input{width:54px;font-size:16px}
+.attendance-edit button[type=submit]{border-color:#16652b;background:#16652b;color:white;font-weight:800}
+.attendance-error{margin:5px 0 0;color:#a02622}
+</style>
+<script>
+function rev68RenderFullAttendance(){
+  if(typeof calView==="undefined"||!calView)return;
+  const box=rev67EnsureFullAttendanceTable();
+  if(!box)return;
+  const y=calView.getFullYear(),m=calView.getMonth();
+  const monthKey=y+"-"+String(m+1).padStart(2,"0");
+  if(box.dataset.attendanceMonth===monthKey)return;
+  box.dataset.attendanceMonth=monthKey;
+  const days=["월","화","수","목","금","토","일"];
+  const rules=["일+월","월+화","화+수","수+목","목+금","금+토","토+일"];
+  const totals=rev68FullAttendanceTotals(y,m);
+  const max=new Date(y,m+1,0).getDate();
+  const storageKey=i=>"bus1560-attendance-v1:"+monthKey+":"+i;
+
+  function displayedTotal(i){
+    try{
+      const raw=localStorage.getItem(storageKey(i));
+      if(raw!==null&&/^\d+$/.test(raw)&&Number(raw)<=max)return Number(raw);
+    }catch{}
+    return totals[i];
+  }
+
+  box.setAttribute("aria-label",y+"년 "+(m+1)+"월 만근 합계");
+  box.innerHTML=
+    '<div class="rev67-full-attendance-title"><span>✅ 만근 합계</span><span class="rev68-full-month">'+y+'.'+(m+1)+'</span></div>'+
+    '<div class="rev68-full-grid">'+days.map((day,i)=>
+      '<div class="rev68-full-cell"><div class="rev68-full-day">'+day+'</div>'+
+      '<button type="button" class="rev68-full-total">'+displayedTotal(i)+'</button>'+
+      '<div class="rev68-full-rule">'+rules[i]+'</div></div>'
+    ).join("")+'</div>'+
+    '<p class="attendance-hint">숫자를 눌러 수정</p>'+
+    '<form class="attendance-edit" hidden>'+
+      '<label for="attendance-days"></label><div class="attendance-edit-controls">'+
+        '<input id="attendance-days" type="number" inputmode="numeric" min="0" max="'+max+'" step="1" required>'+
+        '<button type="submit">저장</button><button type="button" data-auto>자동 계산</button>'+
+        '<button type="button" data-cancel>취소</button>'+
+      '</div><p class="attendance-error" role="alert" hidden></p>'+
+    '</form>';
+
+  const form=box.querySelector("form");
+  const input=form.querySelector("input");
+  const error=form.querySelector(".attendance-error");
+  const buttons=[...box.querySelectorAll(".rev68-full-total")];
+  let editing=0;
+
+  function updateButton(i){
+    const total=displayedTotal(i);
+    buttons[i].textContent=total;
+    buttons[i].setAttribute("aria-label",days[i]+"요일 만근 합계 "+total+"일 수정");
+  }
+  buttons.forEach((button,i)=>{
+    updateButton(i);
+    button.onclick=()=>{
+      editing=i;
+      error.hidden=true;
+      form.querySelector("label").textContent=days[i]+"요일 만근 일수";
+      input.value=displayedTotal(i);
+      form.hidden=false;
+      input.focus();
+      input.select();
+    };
+  });
+
+  function finishEdit(){
+    form.hidden=true;
+    buttons[editing].focus();
+  }
+  function saveTotal(value){
+    try{
+      if(value===null)localStorage.removeItem(storageKey(editing));
+      else localStorage.setItem(storageKey(editing),String(value));
+    }catch{
+      error.textContent="이 브라우저에 저장할 수 없습니다.";
+      error.hidden=false;
+      return;
+    }
+    updateButton(editing);
+    finishEdit();
+  }
+  form.onsubmit=event=>{
+    event.preventDefault();
+    if(form.reportValidity())saveTotal(input.valueAsNumber);
+  };
+  form.querySelector("[data-auto]").onclick=()=>saveTotal(null);
+  form.querySelector("[data-cancel]").onclick=finishEdit;
+}
+</script>
