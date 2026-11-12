@@ -38,11 +38,6 @@ final class TripTimerPane extends ScrollView {
     int padding = Ui.dp(context, 9);
     content.setPadding(padding, Ui.dp(context, 8), padding, padding);
     addView(content);
-    TextView heading = Ui.bold(context, "타이머", 18, Ui.GOLD);
-    heading.setPadding(Ui.dp(context, 5), Ui.dp(context, 8), 0, Ui.dp(context, 6));
-    if (Build.VERSION.SDK_INT >= 28) heading.setAccessibilityHeading(true);
-    content.addView(heading);
-
     LinearLayout card = Ui.column(context);
     card.setPadding(padding, padding, padding, padding);
     card.setBackground(Ui.shape(Ui.CARD, Ui.dp(context, 20)));
@@ -61,7 +56,7 @@ final class TripTimerPane extends ScrollView {
     card.addView(action, new LinearLayout.LayoutParams(-1, -2));
     Ui.addCard(content, card);
 
-    TextView historyTitle = Ui.bold(context, "타이머 기록", 16, Ui.WHITE);
+    TextView historyTitle = Ui.bold(context, "운행 기록", 16, Ui.WHITE);
     if (Build.VERSION.SDK_INT >= 28) historyTitle.setAccessibilityHeading(true);
     content.addView(historyTitle);
     history = Ui.column(context);

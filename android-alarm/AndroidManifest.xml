@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="kr.palcheonjo.alarm1560" android:versionCode="5" android:versionName="1.0.4">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="kr.palcheonjo.alarm1560" android:versionCode="6" android:versionName="1.0.5">
   <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="35"/>
   <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
   <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="32"/>
@@ -17,6 +17,7 @@
     </activity>
     <activity android:name=".EditActivity" android:exported="false"/>
     <activity android:name=".RingActivity" android:exported="false" android:excludeFromRecents="true" android:launchMode="singleTop" android:showWhenLocked="true" android:turnScreenOn="true"/>
+    <receiver android:name=".CountdownReceiver" android:exported="false" android:directBootAware="true"/>
     <receiver android:name=".AlarmReceiver" android:exported="false" android:directBootAware="true"/>
     <receiver android:name=".RestoreReceiver" android:exported="true" android:directBootAware="true">
       <intent-filter>

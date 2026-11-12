@@ -9,6 +9,8 @@ import android.widget.*;
 import java.io.*;
 import java.util.*;
 import kr.palcheonjo.alarm1560.*;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 /** Uses only disposable emulator data. Includes upgrade preservation and real UI actions. */
 public final class PhotoUiTest extends Instrumentation {
@@ -112,6 +114,14 @@ public final class PhotoUiTest extends Instrumentation {
       context = getTargetContext();
       context.createDeviceProtectedStorageContext()
           .getSharedPreferences("trip-timer-v1", Context.MODE_PRIVATE).edit().clear().commit();
+      SharedPreferences multi = context.createDeviceProtectedStorageContext()
+          .getSharedPreferences("multi-timers-v1", Context.MODE_PRIVATE);
+      JSONArray timers = new JSONArray()
+          .put(new JSONObject().put("id", "test-a").put("title", "3분 타이머")
+              .put("duration", 180_000).put("remaining", 180_000))
+          .put(new JSONObject().put("id", "test-b").put("title", "5분 타이머")
+              .put("duration", 300_000).put("remaining", 300_000));
+      multi.edit().clear().putString("timers", timers.toString()).commit();
       for (Alarm a : Engine.alarms(context)) Engine.remove(context, a.id);
       for (int i = 0; i < 200 && Engine.active(context) != null; i++) Engine.finish(context, false);
       context
@@ -150,6 +160,22 @@ public final class PhotoUiTest extends Instrumentation {
       check(Engine.find(context, first.id).enabled, "Switch did not enable alarm");
       click("alarm-toggle-" + first.id);
       check(!Engine.find(context, first.id).enabled, "Switch did not disable alarm");
+      stage("saving a disabled alarm turns it on");
+      Alarm elapsed = Engine.find(context, first.id);
+      elapsed.date = "2000-01-01";
+      Engine.save(context, elapsed);
+      editor = addMonitor(EditActivity.class.getName(), null, false);
+      click("alarm-card-" + first.id);
+      Activity savedEditor = waitForMonitorWithTimeout(editor, 15000);
+      check(savedEditor != null, "Disabled alarm did not open");
+      View save = savedEditor.getWindow().getDecorView().findViewWithTag("alarm-editor-save");
+      check(save != null, "Alarm save button missing");
+      runOnMainSync(save::performClick);
+      waitForIdleSync();
+      removeMonitor(editor);
+      check(Engine.find(context, first.id).enabled, "Saving did not turn alarm on");
+      check(Engine.scheduled(context, first.id) > System.currentTimeMillis(), "Saving did not schedule an alarm");
+      click("alarm-toggle-" + first.id);
       stage("live countdown and persistent reference marker");
       Calendar clock = Calendar.getInstance();
       clock.add(Calendar.MINUTE, 15);
@@ -175,6 +201,28 @@ public final class PhotoUiTest extends Instrumentation {
       check(tagged("trip-timer") instanceof ScrollView, "Timer scroll missing");
       check(tagged("alarm-reservations").getParent() != tagged("trip-timer").getParent(),
           "Reservation and timer scroll must be independent");
+      click("timer-tab-multi");
+      check(tagged("multi-timer").isShown(), "Multi Timer tab did not open");
+      check(!tagged("trip-timer").isShown(), "Stopwatch still visible on Multi Timer");
+      View root = main.getWindow().getDecorView();
+      View a = description(root, "3분 타이머 시작");
+      View b = description(root, "5분 타이머 시작");
+      check(a != null && b != null, "Both saved timers must show");
+      runOnMainSync(a::performClick);
+      b = description(root, "5분 타이머 시작");
+      check(b != null, "Starting one timer changed another");
+      runOnMainSync(b::performClick);
+      Thread.sleep(1200);
+      View pause = description(root, "3분 타이머 일시정지");
+      check(pause != null, "First timer did not start");
+      runOnMainSync(pause::performClick);
+      JSONArray paused = new JSONArray(multi.getString("timers", "[]"));
+      check(paused.getJSONObject(0).getLong("deadline") == 0
+          && paused.getJSONObject(0).getLong("remaining") < 180_000, "First timer did not pause");
+      check(paused.getJSONObject(1).getLong("deadline") > SystemClock.elapsedRealtime(),
+          "Second timer stopped when the first paused");
+      click("timer-tab-stopwatch");
+      check(tagged("trip-timer").isShown(), "Stopwatch tab did not open");
       click("trip-action");
       check(((Button) tagged("trip-action")).getText().equals("도착"), "Trip did not start");
       Thread.sleep(1200);
@@ -186,6 +234,14 @@ public final class PhotoUiTest extends Instrumentation {
       click("trip-action");
       check(((Button) tagged("trip-action")).getText().equals("출발"), "Trip did not finish");
       check(((LinearLayout) tagged("trip-history")).getChildAt(0) instanceof LinearLayout, "Trip record missing");
+      click("timer-tab-multi");
+      root = main.getWindow().getDecorView();
+      check(description(root, "3분 타이머 계속") != null, "Paused timer lost on relaunch");
+      check(description(root, "5분 타이머 일시정지") != null, "Running timer lost on relaunch");
+      View reset = description(root, "5분 타이머 초기화");
+      runOnMainSync(reset::performClick);
+      check(description(root, "5분 타이머 시작") != null, "Timer did not reset");
+      click("timer-tab-stopwatch");
       stage("bottom tabs and floating add button");
       click("main-tab-more");
       check(tagged("main-add").getVisibility() == View.GONE, "Add button must hide on More");

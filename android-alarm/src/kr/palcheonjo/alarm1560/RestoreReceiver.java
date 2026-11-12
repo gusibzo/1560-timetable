@@ -1,6 +1,7 @@
 package kr.palcheonjo.alarm1560;
 
 import android.content.*;
+import android.util.Log;
 
 public final class RestoreReceiver extends BroadcastReceiver {
   @Override
@@ -17,5 +18,13 @@ public final class RestoreReceiver extends BroadcastReceiver {
             || "android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED".equals(a);
     // Boot receivers only re-arm OS alarms: Android 15+ forbids boot-launched playback FGS.
     if (supported) Engine.restore(c, boot);
+    if (Intent.ACTION_MY_PACKAGE_REPLACED.equals(a)
+        || "android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED".equals(a)) {
+      try {
+        new CountdownTimers(c).restoreScheduling();
+      } catch (RuntimeException error) {
+        Log.w("Alarm1560", "Could not restore timers", error);
+      }
+    }
   }
 }

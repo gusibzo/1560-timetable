@@ -39,8 +39,12 @@ public final class EditActivity extends Activity {
       } catch (Exception ignored) {
       }
     }
-    // Retain the enabled state that the former editor switch displayed by default.
-    alarm.enabled = alarm.enabled || alarm.snoozeUntil > System.currentTimeMillis();
+    if (saved == null && !alarm.enabled && alarm.days == 0 && !alarm.date.isEmpty()
+        && AlarmTime.next(System.currentTimeMillis(), alarm.hour, alarm.minute, 0, alarm.date,
+            TimeZone.getDefault()) == 0) {
+      // An elapsed one-time reservation can be set again using its next occurrence.
+      alarm.date = "";
+    }
     LinearLayout root = Ui.column(this);
     Ui.screen(this, root);
     root.addView(Ui.bold(this, id == null ? "알람 추가" : "알람 수정", 25, Ui.WHITE));
@@ -221,6 +225,7 @@ public final class EditActivity extends Activity {
     actions.addView(save, new LinearLayout.LayoutParams(0, Ui.dp(this, 64), 1));
     root.addView(actions);
     cancel.setOnClickListener(v -> finish());
+    save.setTag("alarm-editor-save");
     save.setOnClickListener(v -> save());
   }
 
@@ -263,15 +268,18 @@ public final class EditActivity extends Activity {
     stopPreview();
     readForm();
     alarm.arm(System.currentTimeMillis());
-    if (alarm.enabled && alarm.days == 0 && alarm.oneTimeAt == 0) {
+    if (alarm.days == 0 && alarm.oneTimeAt == 0) {
       Toast.makeText(this, "이미 지난 날짜입니다. 날짜나 시간을 바꿔 주세요.", Toast.LENGTH_LONG).show();
       return;
     }
-    if (alarm.days == 0 && alarm.oneTimeAt > 0) alarm.date = MainActivity.iso(alarm.oneTimeAt);
+    if (alarm.days == 0) alarm.date = MainActivity.iso(alarm.oneTimeAt);
+    alarm.enabled = true;
     try {
       Engine.save(this, alarm);
-      Toast.makeText(this, alarm.enabled ? "알람을 저장했습니다" : "꺼진 알람으로 저장했습니다", Toast.LENGTH_SHORT)
-          .show();
+      String message = Engine.scheduled(this, alarm.id) > 0
+          ? "알람을 켜고 저장했습니다"
+          : "알람을 저장했습니다. 예약 권한을 확인해 주세요.";
+      Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
       finish();
     } catch (RuntimeException e) {
       Toast.makeText(this, "저장하지 못했습니다. 다시 시도해 주세요.", Toast.LENGTH_LONG).show();

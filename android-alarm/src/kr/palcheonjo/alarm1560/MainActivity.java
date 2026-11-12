@@ -18,7 +18,7 @@ import org.json.*;
 public final class MainActivity extends Activity {
   private LinearLayout body, alarmTab, moreTab;
   private ScrollView scroll;
-  private TripTimerPane timerPane;
+  private TimerTabs timerPane;
   private View paneDivider;
   private FrameLayout floating;
   private TextView back;
@@ -53,7 +53,8 @@ public final class MainActivity extends Activity {
       new BroadcastReceiver() {
         @Override
         public void onReceive(Context c, Intent intent) {
-          render();
+          if (CountdownTimers.CHANGED.equals(intent.getAction())) timerPane.countdownsChanged();
+          else render();
         }
       };
   private final Runnable refresh =
@@ -121,7 +122,7 @@ public final class MainActivity extends Activity {
     paneDivider = new View(this);
     paneDivider.setBackgroundColor(0xff3e3e42);
     panes.addView(paneDivider, new LinearLayout.LayoutParams(Ui.dp(this, 1), -1));
-    timerPane = new TripTimerPane(this);
+    timerPane = new TimerTabs(this, appearance);
     panes.addView(timerPane, new LinearLayout.LayoutParams(0, -1, 1));
     column.addView(panes, new LinearLayout.LayoutParams(-1, 0, 1));
     LinearLayout navigation = Ui.row(this);
@@ -204,9 +205,11 @@ public final class MainActivity extends Activity {
   protected void onResume() {
     super.onResume();
     if (!registered) {
+      IntentFilter filter = new IntentFilter(Engine.CHANGED);
+      filter.addAction(CountdownTimers.CHANGED);
       if (Build.VERSION.SDK_INT >= 33)
-        registerReceiver(changes, new IntentFilter(Engine.CHANGED), Context.RECEIVER_NOT_EXPORTED);
-      else registerReceiver(changes, new IntentFilter(Engine.CHANGED));
+        registerReceiver(changes, filter, Context.RECEIVER_NOT_EXPORTED);
+      else registerReceiver(changes, filter);
       registered = true;
     }
     Engine.reconcile(this, false);
@@ -699,7 +702,7 @@ public final class MainActivity extends Activity {
         break;
       case 5:
         new AlertDialog.Builder(this)
-            .setTitle("1560 알람 M · 1.0.4")
+            .setTitle("1560 알람 M · 1.0.5")
             .setMessage(
                 "팔천조 형님을 위한 휴대폰 알람\n\n"
                     + "인터넷 · 계정 없이 휴대폰 안에서 작동합니다.\n"

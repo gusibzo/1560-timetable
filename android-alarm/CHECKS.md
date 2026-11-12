@@ -1,3 +1,11 @@
+# 1.0.5 verification — 2026-11-12 KST
+
+Installer: `1560-alarm-M-1.0.5.apk`, versionCode 6.
+
+- API 35 build, APK v2/v3 signatures, timer receiver, archive integrity and all 14 alarm sounds verified. The package and signing certificate match 1.0.4.
+- The 15 alarm scheduling checks and 16 remaining-time checks passed. Countdown arithmetic for pause, separate deadlines, zero clamp and displayed rounding also passed.
+- The device test APK builds with regressions for saving a disabled alarm as scheduled and enabled, switching timer tabs, operating two countdowns independently, and restoring both countdowns and the stopwatch on relaunch. Device execution is pending.
+
 # 1.0.4 verification — 2026-11-11 KST
 
 Installer: `1560-alarm-M-1.0.4.apk`, versionCode 5.

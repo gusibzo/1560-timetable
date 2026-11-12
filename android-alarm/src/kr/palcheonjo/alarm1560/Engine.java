@@ -85,7 +85,14 @@ public final class Engine {
     }
     if (!found) out.put(a.json());
     put(d, "alarms", out);
+    JSONObject scheduled = object(d, "scheduled");
+    long now = System.currentTimeMillis();
+    long oldAt = scheduled.optLong(a.id, 0);
+    boolean replacesDue = oldAt > 0 && oldAt <= now && a.next(now) > now;
+    // A saved future reservation supersedes a late delivery of its previous time.
+    if (replacesDue) scheduled.remove(a.id);
     write(c, d);
+    if (replacesDue) cancel(c, a.id, oldAt);
     reconcile(c, false);
   }
 
