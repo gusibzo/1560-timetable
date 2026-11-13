@@ -246,19 +246,22 @@ assert.equal(JSON.parse(manualData[key]).arrivalPlace, '경희대 정문', 'Late
 const legacyRun = boot({[key]:JSON.stringify({version:1,startedAt:slot,arrivedAt:null})}, slot+10000);
 assert.equal(legacyRun.watches.size, 1, 'Restore GPS for existing manually started trips');
 
+assert.match(html, /#tripTimer\[data-state="scheduled"\] #tripElapsed\{color:#ffdf58\}/);
+assert.match(html, /#tripTimer\[data-state="running"\] #tripElapsed,\s*#tripTimer\[data-state="arrived"\] #tripElapsed\{color:#82caff\}/);
+assert.doesNotMatch(html, /data-trip-phase/);
 const colors = boot({}, slot-1000);
-assert.equal(colors.slot('9:19').dataset.tripPhase, 'past');
-const upcomingSlot = colors.slot('9:20');
-assert.equal(upcomingSlot.dataset.tripPhase, 'upcoming');
-assert.equal(colors.slot('8:00', 'saturday').dataset.tripPhase, 'upcoming');
+const selectedSlot = colors.slot('9:20');
 colors.reserve('9:20');
-assert.equal(upcomingSlot.attrs['aria-pressed'], 'true');
+assert.equal(colors.node('tripTimer').dataset.state, 'scheduled');
+assert.equal(selectedSlot.attrs['aria-pressed'], 'true');
 colors.at(slot);
-assert.equal(upcomingSlot.dataset.tripPhase, 'past');
-assert.equal(upcomingSlot.attrs['aria-pressed'], 'false');
-colors.at(Date.parse('2026-11-11T15:00:00Z'));
-assert.equal(upcomingSlot.dataset.tripPhase, 'upcoming', 'At midnight in Korea slots reset for the new day');
+assert.equal(colors.node('tripTimer').dataset.state, 'running');
+assert.equal(selectedSlot.attrs['aria-pressed'], 'false');
+colors.at(slot + 120000);
+colors.click('tripArrive');
+assert.equal(colors.node('tripTimer').dataset.state, 'arrived');
 
-console.log('Rev195: manual and restored trips use GPS, stationary GPS fallback, moderate location error, and departure colors passed');
+console.log('Rev196: timer changes color at departure and keeps the elapsed color on arrival');
+console.log('Rev195: manual and restored trips use GPS, stationary GPS fallback, and moderate location error passed');
 console.log('Rev195: time selection, scheduled start, holiday rollover, GPS departure and return, both destinations, permission retry, and manual arrival passed');
 console.log('Rev189: trip start/arrival, sleep and reload recovery, midnight, fixed result, new trip, repeated taps, cross-tab restoration and unavailable/corrupt storage passed');
