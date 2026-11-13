@@ -25,6 +25,10 @@
     <button id="tripArrive" type="button" disabled>도착</button>
   </div>
   <div class="trip-times"><span>출발 <time id="tripDepartTime">--:--:--</time></span><span>도착 <time id="tripArriveTime">--:--:--</time></span></div>
+  <div id="tripLocation" class="trip-location" hidden>
+    <span id="tripLocationStatus" role="status"></span>
+    <button id="tripGpsRetry" type="button" hidden>GPS 다시 연결</button>
+  </div>
   <p id="tripStorageNote" role="status" hidden>저장할 수 없어 이 화면에서만 유지됩니다.</p>
 </section>
 <script id="trip-records-core">
@@ -53,7 +57,14 @@ const TripTimerRecords = (() => {
     try { trip = JSON.parse(raw); } catch (_) { return null; }
     if (!trip || trip.version !== 1 || !validTime(trip.startedAt)) return null;
     if (trip.arrivedAt !== null && !completed(trip)) return null;
-    return {version:1, startedAt:trip.startedAt, arrivedAt:trip.arrivedAt, history:history(trip)};
+    const saved = {version:1, startedAt:trip.startedAt, arrivedAt:trip.arrivedAt, history:history(trip)};
+    if (trip.arrivedAt === null && trip.autoArrival === true) {
+      saved.autoArrival = true;
+      if (trip.scheduled === true) saved.scheduled = true;
+      else if (trip.leftArea === true) saved.leftArea = true;
+    }
+    if (trip.arrivedAt !== null && typeof trip.arrivalPlace === 'string') saved.arrivalPlace = trip.arrivalPlace;
+    return saved;
   }
 
   function duration(milliseconds) {
@@ -66,10 +77,9 @@ const TripTimerRecords = (() => {
 })();
 </script>
 <script id="rev189-trip-timer">
-/* Use saved timestamps rather than counting interval callbacks after page suspension. */
 (() => {
   'use strict';
-  const {key} = TripTimerRecords;
+  const {key, duration, history} = TripTimerRecords;
   const panel = document.getElementById('tripTimer');
   const depart = document.getElementById('tripDepart');
   const arrive = document.getElementById('tripArrive');
@@ -78,9 +88,32 @@ const TripTimerRecords = (() => {
   const departTime = document.getElementById('tripDepartTime');
   const arriveTime = document.getElementById('tripArriveTime');
   const storageNote = document.getElementById('tripStorageNote');
+  const locationBar = document.getElementById('tripLocation');
+  const locationStatus = document.getElementById('tripLocationStatus');
+  const retry = document.getElementById('tripGpsRetry');
+
+  // Seo-cheon intersection (OSM node 437299195) and Kyung Hee Global Campus
+  // main gate (OSM way 473963422, center near the campus entrance).
+  const destinations = [
+    {name:'서천사거리', latitude:37.2475935, longitude:127.0757373},
+    {name:'경희대 정문', latitude:37.247333, longitude:127.078440}
+  ];
+  const arrivalRadius = 110;
+  const departureRadius = 320;
+  const pad = n => String(n).padStart(2, '0');
   let trip = null;
   let persistent = true;
-  const pad = n => String(n).padStart(2, '0');
+  let watch = null;
+  let generation = 0;
+  let gpsState = 'waiting';
+  let lastFix = 0;
+  let wakeLock = null;
+  let wakeRequested = false;
+  let shownReservation = null;
+  let shownDay = null;
+  let shownTime = null;
+  let message = '';
+
   function read() {
     try {
       return TripTimerRecords.read(localStorage);
@@ -95,11 +128,12 @@ const TripTimerRecords = (() => {
     catch (_) { persistent = false; }
   }
 
-  function koreanDate(at) { return new Date(at + 9 * 60 * 60 * 1000); }
+  function koreanDate(at) { return new Date(at + 32400000); }
   function stamp(at) {
     const d = koreanDate(at);
-    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`;
+    return d.getUTCFullYear() + '-' + pad(d.getUTCMonth()+1) + '-' + pad(d.getUTCDate());
   }
+
   function showTime(node, at, now) {
     if (at === null) {
       node.textContent = '--:--:--';
@@ -108,54 +142,265 @@ const TripTimerRecords = (() => {
       return;
     }
     const d = koreanDate(at);
-    const clock = `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
-    node.textContent = (stamp(at) === stamp(now) ? '' : `${d.getUTCMonth()+1}/${d.getUTCDate()} `) + clock;
+    const clock = pad(d.getUTCHours()) + ':' + pad(d.getUTCMinutes()) + ':' + pad(d.getUTCSeconds());
+    node.textContent = (stamp(at) === stamp(now) ? '' : (d.getUTCMonth()+1) + '/' + d.getUTCDate() + ' ') + clock;
     node.setAttribute('datetime', new Date(at).toISOString());
-    node.title = `${stamp(at)} ${clock} (한국 시간)`;
+    node.title = stamp(at) + ' ' + clock + ' (한국 시간)';
   }
 
-  function render() {
-    const now = Date.now();
-    const running = trip !== null && trip.arrivedAt === null;
-    const duration = trip ? (running ? now : trip.arrivedAt) - trip.startedAt : 0;
-    elapsed.textContent = TripTimerRecords.duration(duration);
-    panel.dataset.state = trip === null ? 'idle' : running ? 'running' : 'arrived';
-    status.textContent = trip === null ? '출발 대기' : running ? '운행 중' : '운행 완료';
+  function timetableDay(date) {
+    const weekday = date.getDay();
+    if (weekday === 0 || calendarInfo(date).holidays.length) return 'sunday';
+    return weekday === 6 ? 'saturday' : 'weekday';
+  }
+
+  function nextDeparture(time, day, now) {
+    const [hour, minute] = time.split(':').map(Number);
+    const date = new TimetableDate(now);
+    date.setHours(hour, minute, 0, 0);
+    for (let i = 0; i < 14; i++, date.setDate(date.getDate() + 1)) {
+      if (date.getTime() > now && timetableDay(date) === day) return date.getTime();
+    }
+    return null;
+  }
+
+  function isRunning() {
+    return trip !== null && trip.arrivedAt === null && !trip.scheduled;
+  }
+
+  function advance(now) {
+    if (!trip?.scheduled || trip.startedAt > now) return;
+    if (persistent) trip = read();
+    if (trip?.scheduled && trip.startedAt <= now) {
+      delete trip.scheduled;
+      save();
+    }
+  }
+
+  function render(now = Date.now()) {
+    const scheduled = Boolean(trip?.scheduled);
+    const running = isRunning();
+    const remaining = scheduled
+      ? Math.ceil(Math.max(0, trip.startedAt - now) / 1000) * 1000
+      : trip ? (running ? now : trip.arrivedAt) - trip.startedAt : 0;
+    elapsed.textContent = duration(remaining);
+    elapsed.setAttribute('aria-label', scheduled ? '예약 출발까지 남은 시간' : '운행 경과 시간');
+    panel.dataset.state = scheduled ? 'scheduled' : running ? 'running' : trip ? 'arrived' : 'idle';
+    const label = scheduled ? '출발 예약' : running ? '운행 중' : trip ? '운행 완료' : '출발 대기';
+    if (status.textContent !== label) status.textContent = label;
     depart.disabled = running;
-    depart.textContent = trip && !running ? '새 출발' : '출발';
+    depart.textContent = scheduled ? '예약 취소' : trip && !running ? '새 출발' : '출발';
     arrive.disabled = !running;
-    showTime(departTime, trip ? trip.startedAt : null, now);
-    showTime(arriveTime, trip ? trip.arrivedAt : null, now);
+    showTime(departTime, trip?.startedAt ?? null, now);
+    showTime(arriveTime, trip?.arrivedAt ?? null, now);
     storageNote.hidden = persistent;
+
+    let detail = message || trip?.arrivalPlace || '';
+    if (trip?.autoArrival && !message) {
+      if (gpsState === 'denied') detail = '위치 권한을 허용해 주세요';
+      else if (gpsState === 'unsupported') detail = 'GPS를 사용할 수 없어요 · 도착은 직접 누르세요';
+      else if (gpsState !== 'ready' || now - lastFix > 45000) detail = 'GPS 위치 확인 중';
+      else if (scheduled) detail = 'GPS 연결됨 · 서천사거리·정문 자동 도착';
+      else detail = trip.leftArea ? '서천사거리·정문 도착 감지 중' : '출발 구역을 벗어나면 도착 감지를 시작해요';
+    }
+    if (trip?.arrivalPlace && !message) detail = '자동 도착 · ' + trip.arrivalPlace;
+    locationBar.hidden = !detail;
+    if (locationStatus.textContent !== detail) locationStatus.textContent = detail;
+    retry.hidden = !trip?.autoArrival || gpsState !== 'denied';
+
+    const selected = scheduled ? trip.startedAt : null;
+    if (selected !== shownReservation) {
+      shownReservation = selected;
+      if (selected !== null) {
+        const date = new TimetableDate(selected);
+        shownDay = timetableDay(date);
+        shownTime = date.getHours() * 60 + date.getMinutes();
+      }
+      document.querySelectorAll('#rows [data-trip-time]').forEach(markSlot);
+    }
+  }
+
+  function markSlot(button) {
+    const [hour, minute] = button.dataset.tripTime.split(':').map(Number);
+    const active = shownReservation !== null && button.dataset.tripDay === shownDay
+      && hour * 60 + minute === shownTime;
+    button.setAttribute('aria-pressed', String(active));
+  }
+
+  function stopWatch() {
+    generation++;
+    if (watch !== null) navigator.geolocation.clearWatch(watch);
+    watch = null;
+    lastFix = 0;
+    if (gpsState === 'ready') gpsState = 'waiting';
+  }
+
+  function finish(at, place = '') {
+    const startedAt = trip?.startedAt;
+    if (persistent) trip = read();
+    if (!isRunning() || trip.startedAt !== startedAt || (place && !trip.leftArea)) return;
+    trip.arrivedAt = Math.max(startedAt, at);
+    delete trip.autoArrival;
+    delete trip.leftArea;
+    if (place) trip.arrivalPlace = place;
+    trip.history = history(trip);
+    message = '';
+    save();
+    update();
+  }
+
+  function onPosition(position) {
+    const now = Date.now();
+    const {coords, timestamp} = position;
+    if (![coords.latitude, coords.longitude, coords.accuracy, timestamp].every(Number.isFinite)
+        || coords.accuracy <= 0 || coords.accuracy > 50 || timestamp <= lastFix
+        || timestamp < now - 15000 || timestamp > now + 3000) return;
+    lastFix = timestamp;
+    gpsState = 'ready';
+    advance(now);
+    if (isRunning() && trip.autoArrival && timestamp >= trip.startedAt) {
+      const distances = destinations.map(destination => rev92DistanceMetres(coords, destination));
+      if (!trip.leftArea && distances.every(distance => distance - coords.accuracy >= departureRadius)) {
+        const startedAt = trip.startedAt;
+        if (persistent) trip = read();
+        if (isRunning() && trip.autoArrival && trip.startedAt === startedAt && !trip.leftArea) {
+          trip.leftArea = true;
+          save();
+        }
+      } else if (trip.leftArea) {
+        const index = distances.findIndex(distance => distance + coords.accuracy <= arrivalRadius);
+        if (index >= 0) finish(Math.min(timestamp, now), destinations[index].name);
+      }
+    }
+    update();
+  }
+
+  function syncWatch() {
+    if (!trip?.autoArrival || document.hidden) {
+      if (watch !== null) stopWatch();
+      return;
+    }
+    if (watch !== null || gpsState === 'denied' || gpsState === 'unsupported') return;
+    if (!globalThis.navigator?.geolocation) {
+      gpsState = 'unsupported';
+      return;
+    }
+    const token = ++generation;
+    try {
+      watch = navigator.geolocation.watchPosition(
+        position => { if (token === generation) onPosition(position); },
+        error => {
+          if (token !== generation) return;
+          lastFix = 0;
+          gpsState = error.code === 1 ? 'denied' : 'waiting';
+          if (gpsState === 'denied') stopWatch();
+          render();
+        },
+        {enableHighAccuracy:true, maximumAge:0, timeout:15000}
+      );
+    } catch (_) {
+      gpsState = 'unsupported';
+    }
+  }
+
+  function syncScreen() {
+    const needed = trip?.autoArrival && isRunning() && !document.hidden && gpsState !== 'denied'
+      && gpsState !== 'unsupported';
+    if (!needed) {
+      wakeRequested = false;
+      if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
+      return;
+    }
+    if (wakeRequested || !globalThis.navigator?.wakeLock) return;
+    wakeRequested = true;
+    const startedAt = trip.startedAt;
+    navigator.wakeLock.request('screen').then(lock => {
+      if (trip?.startedAt !== startedAt || !trip.autoArrival || !isRunning() || document.hidden) {
+        lock.release().catch(() => {});
+        return;
+      }
+      wakeLock = lock;
+      lock.addEventListener('release', () => { if (wakeLock === lock) wakeLock = null; });
+    }).catch(() => {});
+  }
+
+  function update() {
+    const now = Date.now();
+    advance(now);
+    syncWatch();
+    syncScreen();
+    render(now);
+  }
+
+  function reserve(button) {
+    if (persistent) trip = read();
+    const now = Date.now();
+    advance(now);
+    if (isRunning()) {
+      message = '운행 중이에요 · 도착 후 예약해 주세요';
+      update();
+      return;
+    }
+    const startedAt = nextDeparture(button.dataset.tripTime, button.dataset.tripDay, now);
+    if (!startedAt) return;
+    trip = {version:1, startedAt, arrivedAt:null, autoArrival:true, scheduled:true, history:history(trip)};
+    if (gpsState === 'denied') gpsState = 'waiting';
+    message = '';
+    save();
+    update();
   }
 
   depart.addEventListener('click', () => {
-    // Ignore repeated taps so they cannot move the actual departure time.
+    const wasScheduled = Boolean(trip?.scheduled);
     if (persistent) trip = read();
-    if (trip && trip.arrivedAt === null) { render(); return; }
-    trip = {version:1, startedAt:Date.now(), arrivedAt:null, history:TripTimerRecords.history(trip)};
+    advance(Date.now());
+    if (isRunning() || (wasScheduled && !trip?.scheduled)) { update(); return; }
+    const records = history(trip);
+    if (trip?.scheduled) {
+      trip = records.length ? {version:1, ...records[0], history:records} : null;
+    } else {
+      trip = {version:1, startedAt:Date.now(), arrivedAt:null, history:records};
+    }
+    message = '';
     save();
-    render();
+    update();
   });
-  arrive.addEventListener('click', () => {
-    const departure = trip?.startedAt;
-    if (persistent) trip = read();
-    if (!trip || trip.arrivedAt !== null || trip.startedAt !== departure) { render(); return; }
-    trip.arrivedAt = Math.max(trip.startedAt, Date.now());
-    trip.history = TripTimerRecords.history(trip);
-    save();
-    render();
+  arrive.addEventListener('click', () => finish(Date.now()));
+  retry.addEventListener('click', () => {
+    gpsState = 'waiting';
+    message = '';
+    stopWatch();
+    update();
   });
+
+  document.addEventListener('click', event => {
+    const button = event.target.closest('#rows button[data-trip-time]');
+    if (button) reserve(button);
+  });
+  // The table is regenerated every minute. Reflect the saved selection on fresh buttons.
+  const rows = document.getElementById('rows');
+  if (typeof MutationObserver === 'function') {
+    new MutationObserver(() => {
+      if (shownReservation !== null) rows.querySelectorAll('[data-trip-time]').forEach(markSlot);
+    }).observe(rows, {childList:true});
+  }
+
   function restore() {
     if (persistent) trip = read();
-    render();
+    message = '';
+    update();
   }
   window.addEventListener('pageshow', restore);
+  window.addEventListener('pagehide', () => {
+    stopWatch();
+    wakeRequested = false;
+    if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
+  });
   window.addEventListener('storage', event => {
     if (event.key === key || event.key === null) restore();
   });
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) restore(); });
-  setInterval(() => { if (!document.hidden) render(); }, 1000);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) update(); else restore(); });
+  setInterval(() => { if (!document.hidden) update(); }, 1000);
   restore();
 })();
 </script>

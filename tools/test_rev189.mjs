@@ -8,11 +8,17 @@ const code = html.match(/<script id="rev189-trip-timer">([\s\S]*?)<\/script>/)[1
 assert.equal((html.match(/id="tripTimer"/g) || []).length, 1);
 assert.ok(html.indexOf('id="tripTimer"') > html.indexOf('id="roadTrafficBtn"'));
 assert.ok(html.indexOf('id="tripTimer"') < html.indexOf('<nav class="switch"'));
+assert.ok(html.indexOf('id="rev189-trip-timer"') > html.indexOf('<tbody id="rows">'));
 const key = 'bus1560-trip-timer-v1';
 const base = Date.parse('2026-11-10T14:59:50Z'); // 23:59:50 in Korea.
-function boot(storage, initial = base, blocked = false) {
+function boot(storage, initial = base, blocked = false, holidays = []) {
   const nodes = new Map(), windowEvents = {}, documentEvents = {};
-  let now = initial, interval;
+  let now = initial, interval, nextWatch = 0;
+  const watches = new Map();
+  const navigator = {geolocation:{
+    watchPosition(success, error) { const id = ++nextWatch; watches.set(id, {success, error}); return id; },
+    clearWatch(id) { watches.delete(id); }
+  }};
   const node = id => {
     if (!nodes.has(id)) nodes.set(id, {textContent:'', dataset:{}, attrs:{}, events:{},
       addEventListener(name, cb) { this.events[name] = cb; },
@@ -21,13 +27,27 @@ function boot(storage, initial = base, blocked = false) {
     return nodes.get(id);
   };
   class Clock extends Date { static now() { return now; } }
-  const doc = {hidden:false, getElementById:node, addEventListener(name, cb) { documentEvents[name] = cb; }};
-  vm.runInNewContext(core + '\n' + code, {Date:Clock, document:doc,
+  const doc = {hidden:false, getElementById:node, querySelectorAll:()=>[],
+    addEventListener(name, cb) { documentEvents[name] = cb; }};
+  const dates = html.match(/<script id="rev141-korea-date">([\s\S]*?)<\/script>/)[1];
+  vm.runInNewContext(dates + '\n' + core + '\n' + code, {Date:Clock, document:doc, navigator,
+    calendarInfo: date => ({holidays: holidays.includes(new Date(date.getTime()+32400000).toISOString().slice(0,10)) ? ['공휴일'] : []}),
+    rev92DistanceMetres: (a,b) => Math.hypot((a.latitude-b.latitude)*111195,(a.longitude-b.longitude)*88400),
+    MutationObserver: class {
+      observe(target) { assert.equal(target, node('rows')); }
+    },
     window:{addEventListener(name, cb) { windowEvents[name] = cb; }},
     localStorage:{getItem(k) { if (blocked) throw Error('blocked'); return storage[k] ?? null; },
       setItem(k, value) { if (blocked) throw Error('blocked'); storage[k] = value; }},
     setInterval(cb) { interval = cb; }});
-  return {node, doc, windowEvents, documentEvents,
+  return {node, doc, windowEvents, documentEvents, watches,
+    reserve(time, day = 'weekday') {
+      documentEvents.click({target:{closest:()=>({dataset:{tripTime:time, tripDay:day}})}});
+    },
+    fix(latitude, longitude, accuracy = 10, timestamp = now) {
+      for (const watch of [...watches.values()]) watch.success({coords:{latitude,longitude,accuracy},timestamp});
+    },
+    denied() { for (const watch of [...watches.values()]) watch.error({code:1}); },
     at(value) { now = value; interval(); },
     click(id) { node(id).events.click(); },
     elapsed() { return node('tripElapsed').textContent; }};
@@ -104,4 +124,86 @@ privateApp.click('tripArrive'); assert.equal(privateApp.node('tripTimer').datase
 const longTrip = boot({[key]:JSON.stringify({version:1, startedAt:base, arrivedAt:null})}, base + 25*3600000);
 assert.equal(longTrip.elapsed(), '25:00:00', 'An overnight trip must not wrap at 24 hours');
 longTrip.at(base - 5000); assert.equal(longTrip.elapsed(), '00:00:00', 'A clock correction never produces negative time');
+assert.match(html, /td\.appendChild\(departureSlot\(x, state\.day/);
+assert.match(html, /e\.appendChild\(departureSlot\(r\.ext, state\.day/);
+
+// The appointment and an earlier completed trip share one persistent document.
+const earlier = {startedAt:base - 3600000, arrivedAt:base - 300000};
+const upcoming = {[key]:JSON.stringify({version:1,...earlier})};
+const slot = Date.parse('2026-11-11T00:20:00Z');
+let scheduled = boot(upcoming, slot - 20000);
+scheduled.reserve('9:20');
+assert.equal(scheduled.node('tripStatus').textContent, '출발 예약');
+assert.equal(scheduled.elapsed(), '00:00:20');
+assert.equal(JSON.parse(upcoming[key]).startedAt, slot);
+assert.deepEqual(JSON.parse(upcoming[key]).history, [earlier]);
+assert.equal(scheduled.watches.size, 1);
+scheduled.click('tripDepart');
+assert.equal(JSON.parse(upcoming[key]).arrivedAt, earlier.arrivedAt);
+assert.equal(scheduled.watches.size, 0);
+scheduled.reserve('9:20');
+scheduled = boot(upcoming, slot + 3500);
+assert.equal(scheduled.node('tripStatus').textContent, '운행 중');
+assert.equal(scheduled.elapsed(), '00:00:03');
+assert.equal(JSON.parse(upcoming[key]).startedAt, slot);
+scheduled.reserve('10:00');
+assert.equal(JSON.parse(upcoming[key]).startedAt, slot, 'Active trip is not overwritten');
+scheduled.fix(37.247333, 127.078440);
+assert.equal(JSON.parse(upcoming[key]).arrivedAt, null, 'No finish while still at the origin');
+scheduled.at(slot + 7000);
+scheduled.fix(37.254, 127.081, 200);
+assert.equal(JSON.parse(upcoming[key]).leftArea, undefined, 'Reject an inaccurate departure fix');
+scheduled.fix(37.254, 127.081, 10, slot - 1000);
+assert.equal(JSON.parse(upcoming[key]).leftArea, undefined, 'Reject a fix before departure');
+scheduled.fix(37.254, 127.081);
+assert.equal(JSON.parse(upcoming[key]).leftArea, true);
+
+scheduled = boot(upcoming, slot + 901000);
+scheduled.fix(37.2475935, 127.0757373, 100);
+assert.equal(JSON.parse(upcoming[key]).arrivedAt, null, 'Reject an inaccurate arrival fix');
+scheduled.fix(37.2475935, 127.0757373, 10, slot + 900500);
+assert.equal(JSON.parse(upcoming[key]).arrivalPlace, '서천사거리');
+assert.equal(JSON.parse(upcoming[key]).arrivedAt, slot + 900500, 'Use the GPS fix timestamp');
+assert.equal(scheduled.watches.size, 0);
+assert.equal(scheduled.elapsed(), '00:15:00');
+assert.deepEqual(JSON.parse(upcoming[key]).history, [{startedAt:slot, arrivedAt:slot + 900500}, earlier]);
+scheduled.at(slot + 980000);
+assert.equal(scheduled.elapsed(), '00:15:00');
+
+const reopened = boot({}, slot - 10000);
+reopened.reserve('9:20');
+reopened.doc.hidden = true;
+reopened.documentEvents.visibilitychange();
+assert.equal(reopened.watches.size, 0);
+reopened.at(slot + 14000);
+reopened.doc.hidden = false;
+reopened.documentEvents.visibilitychange();
+assert.equal(reopened.elapsed(), '00:00:14');
+reopened.denied();
+assert.equal(reopened.watches.size, 0);
+assert.equal(reopened.node('tripGpsRetry').hidden, false);
+reopened.click('tripGpsRetry');
+assert.equal(reopened.watches.size, 1);
+reopened.click('tripArrive');
+assert.equal(reopened.node('tripTimer').dataset.state, 'arrived');
+assert.equal(reopened.watches.size, 0);
+
+const friday = Date.parse('2026-11-13T00:25:00Z');
+const future = {};
+const fridayApp = boot(future, friday, false, ['2026-11-16']);
+fridayApp.reserve('9:20');
+assert.equal(JSON.parse(future[key]).startedAt, Date.parse('2026-11-17T00:20:00Z'));
+fridayApp.reserve('9:20','saturday');
+assert.equal(JSON.parse(future[key]).startedAt, Date.parse('2026-11-14T00:20:00Z'));
+fridayApp.reserve('9:20','sunday');
+assert.equal(JSON.parse(future[key]).startedAt, Date.parse('2026-11-15T00:20:00Z'));
+const gate = boot({}, slot - 10000);
+gate.reserve('9:20');
+gate.at(slot + 1000);
+gate.fix(37.254, 127.081);
+gate.at(slot + 600000);
+gate.fix(37.247333, 127.078440);
+assert.equal(gate.node('tripLocationStatus').textContent, '자동 도착 · 경희대 정문');
+
+console.log('Rev193: time selection, scheduled start, holiday rollover, GPS departure and return, both destinations, permission retry, and manual arrival passed');
 console.log('Rev189: trip start/arrival, sleep and reload recovery, midnight, fixed result, new trip, repeated taps, cross-tab restoration and unavailable/corrupt storage passed');

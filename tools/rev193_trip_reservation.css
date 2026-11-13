@@ -1,0 +1,35 @@
+.grid .trip-slot{
+  appearance:none;
+  min-width:0;
+  margin:0;
+  padding:0;
+  border:0;
+  background:transparent;
+  color:inherit;
+  font:inherit;
+  cursor:pointer;
+  touch-action:manipulation;
+}
+.grid .trip-slot-extra{font-size:inherit;font-weight:900}
+.grid .trip-slot:focus-visible,.grid .trip-slot[aria-pressed="true"]{
+  outline:2px solid #1767c8;
+  outline-offset:3px;
+  border-radius:4px;
+}
+#tripTimer[data-state="scheduled"] #tripElapsed{color:#ffdf58}
+#tripLocation{
+  grid-column:1/-1;
+  margin-top:5px;
+  color:#d7e7f6;
+  font-size:11px;
+  text-align:center;
+}
+#tripLocation[hidden],#tripGpsRetry[hidden]{display:none}
+#tripTimer #tripGpsRetry{
+  min-height:32px;
+  margin-left:5px;
+  padding:4px 8px;
+  background:#ffdf58;
+  color:#122b49;
+  font-size:11px;
+}
