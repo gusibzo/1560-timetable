@@ -92,10 +92,10 @@ const TripTimerRecords = (() => {
   const locationStatus = document.getElementById('tripLocationStatus');
   const retry = document.getElementById('tripGpsRetry');
 
-  // Seo-cheon intersection (OSM node 437299195) and Kyung Hee Global Campus
-  // main gate (OSM way 473963422, center near the campus entrance).
+  // Campus entrance at Deogyeong-daero and Cheongmyeong-ro (OSM node 522283295).
+  // The main gate is the center of the Neo-Renaissance Gate (OSM way 473963422).
   const destinations = [
-    {name:'서천사거리', latitude:37.2475935, longitude:127.0757373},
+    {name:'경희대 사거리', latitude:37.2476648, longitude:127.0791747},
     {name:'경희대 정문', latitude:37.247333, longitude:127.078440}
   ];
   const arrivalRadius = 110;
@@ -200,8 +200,8 @@ const TripTimerRecords = (() => {
       if (gpsState === 'denied') detail = '위치 권한을 허용해 주세요';
       else if (gpsState === 'unsupported') detail = 'GPS를 사용할 수 없어요 · 도착은 직접 누르세요';
       else if (gpsState !== 'ready' || now - lastFix > 45000) detail = 'GPS 위치 확인 중';
-      else if (scheduled) detail = 'GPS 연결됨 · 서천사거리·정문 자동 도착';
-      else detail = trip.leftArea ? '서천사거리·정문 도착 감지 중' : '출발 구역을 벗어나면 도착 감지를 시작해요';
+      else if (scheduled) detail = 'GPS 연결됨 · 경희대 사거리·정문 자동 도착';
+      else detail = trip.leftArea ? '경희대 사거리·정문 도착 감지 중' : '출발 구역을 벗어나면 도착 감지를 시작해요';
     }
     if (trip?.arrivalPlace && !message) detail = '자동 도착 · ' + trip.arrivalPlace;
     locationBar.hidden = !detail;
@@ -268,8 +268,11 @@ const TripTimerRecords = (() => {
           save();
         }
       } else if (trip.leftArea) {
-        const index = distances.findIndex(distance => distance + coords.accuracy <= arrivalRadius);
-        if (index >= 0) finish(Math.min(timestamp, now), destinations[index].name);
+        // The gate and intersection have overlapping arrival areas.
+        const closest = Math.min(...distances);
+        if (closest + coords.accuracy <= arrivalRadius) {
+          finish(Math.min(timestamp, now), destinations[distances.indexOf(closest)].name);
+        }
       }
     }
     update();

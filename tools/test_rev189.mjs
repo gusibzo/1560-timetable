@@ -159,10 +159,12 @@ scheduled.fix(37.254, 127.081);
 assert.equal(JSON.parse(upcoming[key]).leftArea, true);
 
 scheduled = boot(upcoming, slot + 901000);
-scheduled.fix(37.2475935, 127.0757373, 100);
+scheduled.fix(37.2475935, 127.0757373, 10, slot + 900000);
+assert.equal(JSON.parse(upcoming[key]).arrivedAt, null, 'Seocheon intersection does not finish a trip');
+scheduled.fix(37.2476648, 127.0791747, 100);
 assert.equal(JSON.parse(upcoming[key]).arrivedAt, null, 'Reject an inaccurate arrival fix');
-scheduled.fix(37.2475935, 127.0757373, 10, slot + 900500);
-assert.equal(JSON.parse(upcoming[key]).arrivalPlace, '서천사거리');
+scheduled.fix(37.2476648, 127.0791747, 10, slot + 900500);
+assert.equal(JSON.parse(upcoming[key]).arrivalPlace, '경희대 사거리');
 assert.equal(JSON.parse(upcoming[key]).arrivedAt, slot + 900500, 'Use the GPS fix timestamp');
 assert.equal(scheduled.watches.size, 0);
 assert.equal(scheduled.elapsed(), '00:15:00');
@@ -205,5 +207,5 @@ gate.at(slot + 600000);
 gate.fix(37.247333, 127.078440);
 assert.equal(gate.node('tripLocationStatus').textContent, '자동 도착 · 경희대 정문');
 
-console.log('Rev193: time selection, scheduled start, holiday rollover, GPS departure and return, both destinations, permission retry, and manual arrival passed');
+console.log('Rev194: time selection, scheduled start, holiday rollover, GPS departure and return, both destinations, permission retry, and manual arrival passed');
 console.log('Rev189: trip start/arrival, sleep and reload recovery, midnight, fixed result, new trip, repeated taps, cross-tab restoration and unavailable/corrupt storage passed');
