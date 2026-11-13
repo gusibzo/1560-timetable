@@ -96,10 +96,13 @@ const TripTimerRecords = (() => {
   // The main gate is the center of the Neo-Renaissance Gate (OSM way 473963422).
   const destinations = [
     {name:'경희대 사거리', latitude:37.2476648, longitude:127.0791747},
-    {name:'경희대 정문', latitude:37.247333, longitude:127.078440}
+    {name:'경희대 정문', latitude:37.247333, longitude:127.078440},
+    // The 1560 arrival stop, number 29038, is west of the gate structure.
+    {name:'경희대 정문', latitude:37.2474500, longitude:127.0778667}
   ];
-  const arrivalRadius = 110;
-  const departureRadius = 320;
+  const arrivalRadius = 120;
+  const departureRadius = 220;
+  const maxAccuracy = 100;
   const pad = n => String(n).padStart(2, '0');
   let trip = null;
   let persistent = true;
@@ -107,11 +110,13 @@ const TripTimerRecords = (() => {
   let generation = 0;
   let gpsState = 'waiting';
   let lastFix = 0;
+  let nextProbeAt = 0;
   let wakeLock = null;
   let wakeRequested = false;
   let shownReservation = null;
   let shownDay = null;
   let shownTime = null;
+  let slotMinute = null;
   let message = '';
 
   function read() {
@@ -199,32 +204,43 @@ const TripTimerRecords = (() => {
     if (trip?.autoArrival && !message) {
       if (gpsState === 'denied') detail = '위치 권한을 허용해 주세요';
       else if (gpsState === 'unsupported') detail = 'GPS를 사용할 수 없어요 · 도착은 직접 누르세요';
-      else if (gpsState !== 'ready' || now - lastFix > 45000) detail = 'GPS 위치 확인 중';
+      else if (gpsState === 'weak') detail = 'GPS 정확도가 낮아요 · 휴대폰의 정확한 위치를 켜 주세요';
+      else if (gpsState !== 'ready' || now - lastFix > 25000) detail = 'GPS 위치 확인 중';
       else if (scheduled) detail = 'GPS 연결됨 · 경희대 사거리·정문 자동 도착';
       else detail = trip.leftArea ? '경희대 사거리·정문 도착 감지 중' : '출발 구역을 벗어나면 도착 감지를 시작해요';
     }
     if (trip?.arrivalPlace && !message) detail = '자동 도착 · ' + trip.arrivalPlace;
     locationBar.hidden = !detail;
     if (locationStatus.textContent !== detail) locationStatus.textContent = detail;
-    retry.hidden = !trip?.autoArrival || gpsState !== 'denied';
+    retry.hidden = !trip?.autoArrival || gpsState === 'unsupported' ||
+      (gpsState === 'ready' && now - lastFix <= 25000);
 
     const selected = scheduled ? trip.startedAt : null;
-    if (selected !== shownReservation) {
+    const selectionChanged = selected !== shownReservation;
+    if (selectionChanged) {
       shownReservation = selected;
       if (selected !== null) {
         const date = new TimetableDate(selected);
         shownDay = timetableDay(date);
         shownTime = date.getHours() * 60 + date.getMinutes();
       }
-      document.querySelectorAll('#rows [data-trip-time]').forEach(markSlot);
     }
+    if (selectionChanged || Math.floor(now / 60000) !== slotMinute) markSlots(now);
   }
 
-  function markSlot(button) {
-    const [hour, minute] = button.dataset.tripTime.split(':').map(Number);
-    const active = shownReservation !== null && button.dataset.tripDay === shownDay
-      && hour * 60 + minute === shownTime;
-    button.setAttribute('aria-pressed', String(active));
+  function markSlots(now = Date.now()) {
+    slotMinute = Math.floor(now / 60000);
+    const date = new TimetableDate(now);
+    const today = timetableDay(date);
+    const currentTime = date.getHours() * 60 + date.getMinutes();
+    for (const button of rows.querySelectorAll('[data-trip-time]')) {
+      const [hour, minute] = button.dataset.tripTime.split(':').map(Number);
+      const minutes = hour * 60 + minute;
+      const day = button.dataset.tripDay;
+      button.dataset.tripPhase = day === today && minutes <= currentTime ? 'past' : 'upcoming';
+      const active = shownReservation !== null && day === shownDay && minutes === shownTime;
+      button.setAttribute('aria-pressed', String(active));
+    }
   }
 
   function stopWatch() {
@@ -232,7 +248,8 @@ const TripTimerRecords = (() => {
     if (watch !== null) navigator.geolocation.clearWatch(watch);
     watch = null;
     lastFix = 0;
-    if (gpsState === 'ready') gpsState = 'waiting';
+    nextProbeAt = 0;
+    if (gpsState === 'ready' || gpsState === 'weak') gpsState = 'waiting';
   }
 
   function finish(at, place = '') {
@@ -253,8 +270,15 @@ const TripTimerRecords = (() => {
     const now = Date.now();
     const {coords, timestamp} = position;
     if (![coords.latitude, coords.longitude, coords.accuracy, timestamp].every(Number.isFinite)
-        || coords.accuracy <= 0 || coords.accuracy > 50 || timestamp <= lastFix
-        || timestamp < now - 15000 || timestamp > now + 3000) return;
+        || coords.accuracy <= 0 || timestamp <= lastFix
+        || timestamp < now - 25000 || timestamp > now + 3000) return;
+    if (coords.accuracy > maxAccuracy) {
+      if (now - lastFix > 25000) {
+        gpsState = 'weak';
+        render(now);
+      }
+      return;
+    }
     lastFix = timestamp;
     gpsState = 'ready';
     advance(now);
@@ -270,7 +294,8 @@ const TripTimerRecords = (() => {
       } else if (trip.leftArea) {
         // The gate and intersection have overlapping arrival areas.
         const closest = Math.min(...distances);
-        if (closest + coords.accuracy <= arrivalRadius) {
+        const accuracyMargin = Math.min(25, coords.accuracy / 3);
+        if (closest + accuracyMargin <= arrivalRadius) {
           finish(Math.min(timestamp, now), destinations[distances.indexOf(closest)].name);
         }
       }
@@ -278,37 +303,60 @@ const TripTimerRecords = (() => {
     update();
   }
 
-  function syncWatch() {
+  const watchOptions = {enableHighAccuracy:true, maximumAge:0, timeout:15000};
+
+  function syncWatch(now) {
     if (!trip?.autoArrival || document.hidden) {
       if (watch !== null) stopWatch();
       return;
     }
-    if (watch !== null || gpsState === 'denied' || gpsState === 'unsupported') return;
+    if (gpsState === 'denied' || gpsState === 'unsupported') return;
+    if (watch !== null) {
+      // Some browsers stop emitting watch callbacks while the phone stays in one place.
+      if (isRunning() && now >= nextProbeAt && now - lastFix >= 15000
+          && typeof navigator.geolocation.getCurrentPosition === 'function') {
+        nextProbeAt = now + 20000;
+        const token = generation;
+        navigator.geolocation.getCurrentPosition(
+          position => { if (token === generation) onPosition(position); },
+          error => { if (token === generation && error.code === 1) onGpsError(error); },
+          watchOptions
+        );
+      }
+      return;
+    }
     if (!globalThis.navigator?.geolocation) {
       gpsState = 'unsupported';
       return;
     }
     const token = ++generation;
+    nextProbeAt = now + 15000;
     try {
       watch = navigator.geolocation.watchPosition(
         position => { if (token === generation) onPosition(position); },
-        error => {
-          if (token !== generation) return;
-          lastFix = 0;
-          gpsState = error.code === 1 ? 'denied' : 'waiting';
-          if (gpsState === 'denied') stopWatch();
-          render();
-        },
-        {enableHighAccuracy:true, maximumAge:0, timeout:15000}
+        error => { if (token === generation) onGpsError(error); },
+        watchOptions
       );
     } catch (_) {
       gpsState = 'unsupported';
     }
   }
 
-  function syncScreen() {
-    const needed = trip?.autoArrival && isRunning() && !document.hidden && gpsState !== 'denied'
-      && gpsState !== 'unsupported';
+  function onGpsError(error) {
+    if (error.code === 1) {
+      gpsState = 'denied';
+      stopWatch();
+    } else if (gpsState !== 'weak' && Date.now() - lastFix > 25000) {
+      gpsState = 'waiting';
+    }
+    syncScreen(Date.now());
+    render();
+  }
+
+  function syncScreen(now) {
+    const nearDeparture = trip?.scheduled && trip.startedAt - now <= 120000;
+    const needed = trip?.autoArrival && (isRunning() || nearDeparture) && !document.hidden
+      && gpsState !== 'denied' && gpsState !== 'unsupported';
     if (!needed) {
       wakeRequested = false;
       if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
@@ -318,7 +366,8 @@ const TripTimerRecords = (() => {
     wakeRequested = true;
     const startedAt = trip.startedAt;
     navigator.wakeLock.request('screen').then(lock => {
-      if (trip?.startedAt !== startedAt || !trip.autoArrival || !isRunning() || document.hidden) {
+      if (trip?.startedAt !== startedAt || !trip.autoArrival || document.hidden
+          || gpsState === 'denied' || gpsState === 'unsupported') {
         lock.release().catch(() => {});
         return;
       }
@@ -330,8 +379,8 @@ const TripTimerRecords = (() => {
   function update() {
     const now = Date.now();
     advance(now);
-    syncWatch();
-    syncScreen();
+    syncWatch(now);
+    syncScreen(now);
     render(now);
   }
 
@@ -362,7 +411,8 @@ const TripTimerRecords = (() => {
     if (trip?.scheduled) {
       trip = records.length ? {version:1, ...records[0], history:records} : null;
     } else {
-      trip = {version:1, startedAt:Date.now(), arrivedAt:null, history:records};
+      trip = {version:1, startedAt:Date.now(), arrivedAt:null, autoArrival:true, history:records};
+      if (gpsState === 'denied') gpsState = 'waiting';
     }
     message = '';
     save();
@@ -380,16 +430,19 @@ const TripTimerRecords = (() => {
     const button = event.target.closest('#rows button[data-trip-time]');
     if (button) reserve(button);
   });
-  // The table is regenerated every minute. Reflect the saved selection on fresh buttons.
+  // Refresh new buttons after the timetable is rebuilt or a different day is selected.
   const rows = document.getElementById('rows');
   if (typeof MutationObserver === 'function') {
-    new MutationObserver(() => {
-      if (shownReservation !== null) rows.querySelectorAll('[data-trip-time]').forEach(markSlot);
-    }).observe(rows, {childList:true});
+    new MutationObserver(() => markSlots()).observe(rows, {childList:true});
   }
 
   function restore() {
     if (persistent) trip = read();
+    if (isRunning() && !trip.autoArrival) {
+      // A trip already started with the old manual button can still detect arrival.
+      trip.autoArrival = true;
+      save();
+    }
     message = '';
     update();
   }

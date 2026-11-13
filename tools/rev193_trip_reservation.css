@@ -33,3 +33,19 @@
   color:#122b49;
   font-size:11px;
 }
+
+/* Time badges are independent of bus artwork and row selection. */
+#rows .trip-slot[data-trip-phase]:not(td.next > .time){
+  padding-inline:3px;
+  border-radius:5px;
+}
+#rows .trip-slot[data-trip-phase="past"]:not(td.next > .time){
+  background:#d1e7ff!important;
+  color:#164c96!important;
+}
+#rows .trip-slot[data-trip-phase="upcoming"]:not(td.next > .time){
+  background:#ffe271!important;
+  color:#423000!important;
+}
+#rows td.next > .time[data-trip-phase="past"]{color:#c1e7ff!important}
+#rows td.next > .time[data-trip-phase="upcoming"]{color:#ffec89!important}

@@ -15,9 +15,13 @@ function boot(storage, initial = base, blocked = false, holidays = []) {
   const nodes = new Map(), windowEvents = {}, documentEvents = {};
   let now = initial, interval, nextWatch = 0;
   const watches = new Map();
+  const slots = [];
+  const probes = [];
+  let rebuild;
   const navigator = {geolocation:{
     watchPosition(success, error) { const id = ++nextWatch; watches.set(id, {success, error}); return id; },
-    clearWatch(id) { watches.delete(id); }
+    clearWatch(id) { watches.delete(id); },
+    getCurrentPosition(success, error) { probes.push({success, error}); }
   }};
   const node = id => {
     if (!nodes.has(id)) nodes.set(id, {textContent:'', dataset:{}, attrs:{}, events:{},
@@ -26,6 +30,7 @@ function boot(storage, initial = base, blocked = false, holidays = []) {
       removeAttribute(name) { delete this.attrs[name]; }});
     return nodes.get(id);
   };
+  node('rows').querySelectorAll = () => slots;
   class Clock extends Date { static now() { return now; } }
   const doc = {hidden:false, getElementById:node, querySelectorAll:()=>[],
     addEventListener(name, cb) { documentEvents[name] = cb; }};
@@ -34,13 +39,21 @@ function boot(storage, initial = base, blocked = false, holidays = []) {
     calendarInfo: date => ({holidays: holidays.includes(new Date(date.getTime()+32400000).toISOString().slice(0,10)) ? ['공휴일'] : []}),
     rev92DistanceMetres: (a,b) => Math.hypot((a.latitude-b.latitude)*111195,(a.longitude-b.longitude)*88400),
     MutationObserver: class {
+      constructor(callback) { rebuild = callback; }
       observe(target) { assert.equal(target, node('rows')); }
     },
     window:{addEventListener(name, cb) { windowEvents[name] = cb; }},
     localStorage:{getItem(k) { if (blocked) throw Error('blocked'); return storage[k] ?? null; },
       setItem(k, value) { if (blocked) throw Error('blocked'); storage[k] = value; }},
     setInterval(cb) { interval = cb; }});
-  return {node, doc, windowEvents, documentEvents, watches,
+  return {node, doc, windowEvents, documentEvents, watches, probes,
+    slot(time, day = 'weekday') {
+      const button = node(day + ' ' + time);
+      button.dataset = {tripTime:time, tripDay:day};
+      slots.push(button);
+      rebuild();
+      return button;
+    },
     reserve(time, day = 'weekday') {
       documentEvents.click({target:{closest:()=>({dataset:{tripTime:time, tripDay:day}})}});
     },
@@ -161,7 +174,7 @@ assert.equal(JSON.parse(upcoming[key]).leftArea, true);
 scheduled = boot(upcoming, slot + 901000);
 scheduled.fix(37.2475935, 127.0757373, 10, slot + 900000);
 assert.equal(JSON.parse(upcoming[key]).arrivedAt, null, 'Seocheon intersection does not finish a trip');
-scheduled.fix(37.2476648, 127.0791747, 100);
+scheduled.fix(37.2476648, 127.0791747, 101);
 assert.equal(JSON.parse(upcoming[key]).arrivedAt, null, 'Reject an inaccurate arrival fix');
 scheduled.fix(37.2476648, 127.0791747, 10, slot + 900500);
 assert.equal(JSON.parse(upcoming[key]).arrivalPlace, '경희대 사거리');
@@ -207,5 +220,45 @@ gate.at(slot + 600000);
 gate.fix(37.247333, 127.078440);
 assert.equal(gate.node('tripLocationStatus').textContent, '자동 도착 · 경희대 정문');
 
-console.log('Rev194: time selection, scheduled start, holiday rollover, GPS departure and return, both destinations, permission retry, and manual arrival passed');
+const manualData = {};
+const manual = boot(manualData, slot - 10000);
+manual.click('tripDepart');
+assert.equal(manual.watches.size, 1, 'Manual start must use the same GPS detection as a reservation');
+manual.fix(37.2474500, 127.0778667);
+assert.equal(JSON.parse(manualData[key]).arrivedAt, null, 'Stay running while parked at the departure point');
+manual.at(slot + 60000);
+manual.fix(37.2504, 127.0793, 60);
+assert.equal(JSON.parse(manualData[key]).leftArea, true, 'Moderate GPS error still permits departure');
+manual.at(slot + 720000);
+assert.ok(manual.probes.length > 0, 'Watch silence requests a fresh GPS fix');
+manual.probes.at(-1).success({
+  coords:{latitude:37.2474500,longitude:127.0778667,accuracy:80},
+  timestamp:slot+720000
+});
+assert.equal(JSON.parse(manualData[key]).arrivalPlace, '경희대 정문');
+assert.equal(manual.watches.size, 0);
+manual.probes[0].success({
+  coords:{latitude:37.2476648,longitude:127.0791747,accuracy:10},
+  timestamp:slot+720000
+});
+assert.equal(JSON.parse(manualData[key]).arrivalPlace, '경희대 정문', 'Late GPS requests cannot change a completed trip');
+
+const legacyRun = boot({[key]:JSON.stringify({version:1,startedAt:slot,arrivedAt:null})}, slot+10000);
+assert.equal(legacyRun.watches.size, 1, 'Restore GPS for existing manually started trips');
+
+const colors = boot({}, slot-1000);
+assert.equal(colors.slot('9:19').dataset.tripPhase, 'past');
+const upcomingSlot = colors.slot('9:20');
+assert.equal(upcomingSlot.dataset.tripPhase, 'upcoming');
+assert.equal(colors.slot('8:00', 'saturday').dataset.tripPhase, 'upcoming');
+colors.reserve('9:20');
+assert.equal(upcomingSlot.attrs['aria-pressed'], 'true');
+colors.at(slot);
+assert.equal(upcomingSlot.dataset.tripPhase, 'past');
+assert.equal(upcomingSlot.attrs['aria-pressed'], 'false');
+colors.at(Date.parse('2026-11-11T15:00:00Z'));
+assert.equal(upcomingSlot.dataset.tripPhase, 'upcoming', 'At midnight in Korea slots reset for the new day');
+
+console.log('Rev195: manual and restored trips use GPS, stationary GPS fallback, moderate location error, and departure colors passed');
+console.log('Rev195: time selection, scheduled start, holiday rollover, GPS departure and return, both destinations, permission retry, and manual arrival passed');
 console.log('Rev189: trip start/arrival, sleep and reload recovery, midnight, fixed result, new trip, repeated taps, cross-tab restoration and unavailable/corrupt storage passed');
