@@ -127,7 +127,7 @@ const TripTimerRecords = (() => {
   let nextProbeAt = 0;
   let wakeLock = null;
   let wakeRequested = false;
-  let shownReservation = null;
+  let shownDeparture = null;
   let shownDay = null;
   let shownTime = null;
   let message = '';
@@ -299,10 +299,14 @@ const TripTimerRecords = (() => {
     return weekday === 6 ? 'saturday' : 'weekday';
   }
 
-  function nextDeparture(time, day, now) {
+  function departureDate(time, now) {
     const [hour, minute] = time.split(':').map(Number);
     const date = new TimetableDate(now);
     date.setHours(hour, minute, 0, 0);
+    return date;
+  }
+
+  function nextDeparture(date, day, now) {
     for (let i = 0; i < 14; i++, date.setDate(date.getDate() + 1)) {
       if (date.getTime() > now && timetableDay(date) === day) return date.getTime();
     }
@@ -361,9 +365,9 @@ const TripTimerRecords = (() => {
     retry.hidden = (!trip?.autoArrival && !waitingForGate(now)) || gpsState === 'unsupported' ||
       (gpsState === 'ready' && now - lastFix <= 25000);
 
-    const selected = scheduled ? trip.startedAt : null;
-    if (selected !== shownReservation) {
-      shownReservation = selected;
+    const selected = scheduled || running ? trip.startedAt : null;
+    if (selected !== shownDeparture) {
+      shownDeparture = selected;
       if (selected !== null) {
         const date = new TimetableDate(selected);
         shownDay = timetableDay(date);
@@ -378,7 +382,7 @@ const TripTimerRecords = (() => {
       const [hour, minute] = button.dataset.tripTime.split(':').map(Number);
       const minutes = hour * 60 + minute;
       const day = button.dataset.tripDay;
-      const active = shownReservation !== null && day === shownDay && minutes === shownTime;
+      const active = shownDeparture !== null && day === shownDay && minutes === shownTime;
       button.setAttribute('aria-pressed', String(active));
     }
   }
@@ -544,19 +548,23 @@ const TripTimerRecords = (() => {
     flushChime();
   }
 
-  function reserve(button) {
+  function selectDeparture(button) {
     if (persistent) trip = read();
     const now = Date.now();
     advance(now);
-    if (isRunning()) {
-      message = '운행 중이에요 · 도착 후 예약해 주세요';
-      update();
-      return;
+    const {tripTime, tripDay} = button.dataset;
+    const date = departureDate(tripTime, now);
+    const selected = date.getTime();
+    if (isRunning() && selected <= now && timetableDay(date) === tripDay) {
+      // A trip left running from a previous day needs to leave the origin again.
+      if (stamp(trip.startedAt) !== stamp(selected)) delete trip.leftArea;
+      trip.startedAt = selected;
+    } else {
+      const startedAt = nextDeparture(date, tripDay, now);
+      if (startedAt === null) return;
+      trip = {version:1, startedAt, arrivedAt:null, autoArrival:true, scheduled:true, history:history(trip)};
     }
-    const startedAt = nextDeparture(button.dataset.tripTime, button.dataset.tripDay, now);
-    if (!startedAt) return;
     enableChimeAudio();
-    trip = {version:1, startedAt, arrivedAt:null, autoArrival:true, scheduled:true, history:history(trip)};
     if (gpsState === 'denied') gpsState = 'waiting';
     message = '';
     save();
@@ -605,7 +613,7 @@ const TripTimerRecords = (() => {
 
   document.addEventListener('click', event => {
     const button = event.target.closest('#rows button[data-trip-time]');
-    if (button) reserve(button);
+    if (button) selectDeparture(button);
     // A restored or interrupted trip can unlock audio on the next tap.
     else if ((trip?.autoArrival || waitingForGate(Date.now()) || pendingChime) && chimeAudio?.state !== 'running'
         && ![depart, arrive, soundCheck].includes(event.target)) enableChimeAudio();
@@ -614,7 +622,7 @@ const TripTimerRecords = (() => {
   const rows = document.getElementById('rows');
   if (typeof MutationObserver === 'function') {
     new MutationObserver(() => {
-      if (shownReservation !== null) markSlots();
+      if (shownDeparture !== null) markSlots();
     }).observe(rows, {childList:true});
   }
 

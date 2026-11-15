@@ -39,7 +39,7 @@ slot_factory = '''function departureSlot(time, day, service, main) {
  button.textContent=time;
  button.dataset.tripTime=time;
  button.dataset.tripDay=day;
- button.setAttribute("aria-label",`${service} ${time} 출발 예약`);
+ button.setAttribute("aria-label",`${service} ${time} 출발 시각`);
  button.setAttribute("aria-pressed","false");
  return button;
 }

@@ -169,8 +169,6 @@ scheduled = boot(upcoming, slot + 3500);
 assert.equal(scheduled.node('tripStatus').textContent, '운행 중');
 assert.equal(scheduled.elapsed(), '00:00:03');
 assert.equal(JSON.parse(upcoming[key]).startedAt, slot);
-scheduled.reserve('10:00');
-assert.equal(JSON.parse(upcoming[key]).startedAt, slot, 'Active trip is not overwritten');
 scheduled.fix(37.247333, 127.078440);
 assert.equal(JSON.parse(upcoming[key]).arrivedAt, null, 'No finish while still at the origin');
 scheduled.at(slot + 7000);
@@ -258,6 +256,46 @@ assert.equal(JSON.parse(manualData[key]).arrivalPlace, '경희대 정문', 'Late
 const legacyRun = boot({[key]:JSON.stringify({version:1,startedAt:slot,arrivedAt:null})}, slot+10000);
 assert.equal(legacyRun.watches.size, 1, 'Restore GPS for existing manually started trips');
 
+const editingTime = slot + 10 * 60000;
+const corrected = {[key]:JSON.stringify({version:1,...earlier})};
+let editing = boot(corrected, editingTime);
+const oldSlot = editing.slot('9:30');
+const correctedSlot = editing.slot('9:20');
+editing.click('tripDepart');
+editing.fix(37.254, 127.081);
+assert.equal(oldSlot.attrs['aria-pressed'], 'true');
+editing.reserve('9:20');
+assert.equal(editing.node('tripTimer').dataset.state, 'running');
+assert.equal(editing.node('tripDepartTime').textContent, '09:20:00');
+assert.equal(editing.elapsed(), '00:10:00');
+assert.equal(oldSlot.attrs['aria-pressed'], 'false');
+assert.equal(correctedSlot.attrs['aria-pressed'], 'true');
+assert.equal(JSON.parse(corrected[key]).leftArea, true, 'A time correction keeps GPS arrival armed');
+editing = boot(corrected, editingTime + 60000);
+assert.equal(editing.slot('9:20').attrs['aria-pressed'], 'true', 'Restore the selected time after reload');
+editing.fix(37.247333, 127.078440);
+assert.equal(editing.node('tripLocationStatus').textContent, '자동 도착 · 경희대 정문');
+assert.deepEqual(JSON.parse(corrected[key]).history, [{startedAt:slot, arrivedAt:editingTime + 60000}, earlier]);
+
+const previousDay = {[key]:JSON.stringify({
+  version:1, startedAt:slot - 86400000, arrivedAt:null, autoArrival:true, leftArea:true, history:[earlier]
+})};
+const replacing = boot(previousDay, editingTime);
+replacing.reserve('9:20');
+assert.equal(JSON.parse(previousDay[key]).startedAt, slot);
+assert.equal(JSON.parse(previousDay[key]).leftArea, undefined, 'A stale trip must leave the origin again');
+replacing.fix(37.247333, 127.078440);
+assert.equal(replacing.node('tripTimer').dataset.state, 'running');
+const futureSlot = replacing.slot('9:35');
+replacing.reserve('9:35');
+assert.equal(replacing.node('tripTimer').dataset.state, 'scheduled');
+assert.equal(replacing.node('tripDepartTime').textContent, '09:35:00');
+assert.equal(replacing.elapsed(), '00:05:00');
+assert.equal(futureSlot.attrs['aria-pressed'], 'true');
+assert.deepEqual(JSON.parse(previousDay[key]).history, [earlier]);
+replacing.at(slot + 15 * 60000);
+assert.equal(replacing.node('tripTimer').dataset.state, 'running');
+
 assert.match(html, /#tripTimer\[data-state="scheduled"\] #tripElapsed\{color:#82caff\}/);
 assert.match(html, /#tripTimer\[data-state="running"\] #tripElapsed,\s*#tripTimer\[data-state="arrived"\] #tripElapsed\{color:#ffdf58\}/);
 assert.doesNotMatch(html, /data-trip-phase/);
@@ -268,10 +306,11 @@ assert.equal(colors.node('tripTimer').dataset.state, 'scheduled');
 assert.equal(selectedSlot.attrs['aria-pressed'], 'true');
 colors.at(slot);
 assert.equal(colors.node('tripTimer').dataset.state, 'running');
-assert.equal(selectedSlot.attrs['aria-pressed'], 'false');
+assert.equal(selectedSlot.attrs['aria-pressed'], 'true');
 colors.at(slot + 120000);
 colors.click('tripArrive');
 assert.equal(colors.node('tripTimer').dataset.state, 'arrived');
+assert.equal(selectedSlot.attrs['aria-pressed'], 'false');
 
 const notes = [];
 const spoken = [];
@@ -354,6 +393,8 @@ manualChime.click('tripDepart');
 await settleAudio();
 assert.equal(audioResumes, 3, 'The manual departure tap also enables audio');
 assert.equal(spoken.at(-1).path, departureVoice, 'Manual departure also speaks');
+manualChime.reserve('9:19');
+assert.equal(spoken.length, 3, 'Correcting a past departure does not replay the departure voice');
 manualChime.at(slot + 1000);
 manualChime.click('tripArrive');
 assert.equal(notes.length, 18, 'Manual arrival plays the same chime');
@@ -399,6 +440,7 @@ await settleAudio();
 assert.equal(spoken.length, 0, 'Do not replay a stale departure on return to the page');
 
 console.log('Trip timer: Korean speech for departure and main gate, and three chimes for manual or intersection arrival');
+console.log('Trip timer: one-tap correction while running, persistent selection, replacement reservation, GPS and recording');
 console.log('Rev195: manual and restored trips use GPS, stationary GPS fallback, and moderate location error passed');
 console.log('Rev195: time selection, scheduled start, holiday rollover, GPS departure and return, both destinations, permission retry, and manual arrival passed');
 console.log('Rev189: trip start/arrival, sleep and reload recovery, midnight, fixed result, new trip, repeated taps, cross-tab restoration and unavailable/corrupt storage passed');
