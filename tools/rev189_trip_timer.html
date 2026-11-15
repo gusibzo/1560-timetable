@@ -15,6 +15,9 @@
 #tripTimer .trip-times>span{white-space:nowrap}
 #tripTimer .trip-times>span:last-child{text-align:right}
 #tripTimer .trip-times time{color:#fff;font-weight:800}
+#tripTimer .trip-audio{display:flex;align-items:center;gap:8px;margin-top:6px}
+#tripTimer #tripSoundCheck{flex:none;min-height:44px;padding:6px 10px;border:1px solid #aac3d9;background:transparent;color:#fff;font-size:14px}
+#tripSoundStatus{margin:0;color:#ffdf58;font-size:12px}
 #tripStorageNote{margin-top:6px;font-size:11px;color:#ffdf58}
 @media(max-width:360px){#tripTimer{padding:9px 8px}#tripTimer .trip-controls{gap:6px}#tripTimer button{font-size:17px}#tripTimer .trip-times{font-size:11px}}
 </style>
@@ -26,6 +29,10 @@
     <button id="tripArrive" type="button" disabled>도착</button>
   </div>
   <div class="trip-times"><span>출발 <time id="tripDepartTime">--:--:--</time></span><span>도착 <time id="tripArriveTime">--:--:--</time></span></div>
+  <div class="trip-audio">
+    <button id="tripSoundCheck" type="button">출발·도착음 확인</button>
+    <p id="tripSoundStatus" role="status" hidden></p>
+  </div>
   <div id="tripLocation" class="trip-location" hidden>
     <span id="tripLocationStatus" role="status"></span>
     <button id="tripGpsRetry" type="button" hidden>GPS 다시 연결</button>
@@ -88,6 +95,8 @@ const TripTimerRecords = (() => {
   const status = document.getElementById('tripStatus');
   const departTime = document.getElementById('tripDepartTime');
   const arriveTime = document.getElementById('tripArriveTime');
+  const soundCheck = document.getElementById('tripSoundCheck');
+  const soundStatus = document.getElementById('tripSoundStatus');
   const storageNote = document.getElementById('tripStorageNote');
   const locationBar = document.getElementById('tripLocation');
   const locationStatus = document.getElementById('tripLocationStatus');
@@ -118,52 +127,106 @@ const TripTimerRecords = (() => {
   let shownDay = null;
   let shownTime = null;
   let message = '';
-  let arrivalAudio = null;
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  const departureNotes = [[1046.50, 0.32], [1318.51, 0.56]];
+  const arrivalNotes = [[1318.51, 0.32], [1046.50, 0.32], [783.99, 0.56]];
+  const chimeWindow = 60000;
+  let chimeAudio = null;
+  let pendingChime = null;
+  let previewGain = null;
+  let previewEnd = 0;
 
-  function arrivalAudioContext() {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!arrivalAudio && AudioContext) arrivalAudio = new AudioContext();
-    return arrivalAudio;
+  function showSoundStatus(text) {
+    if (soundStatus.textContent !== text) soundStatus.textContent = text;
+    soundStatus.hidden = !text;
   }
 
-  function enableArrivalAudio() {
-    try {
-      const audio = arrivalAudioContext();
-      if (audio && audio.state !== 'running') audio.resume().catch(() => {});
-    } catch (_) {}
+  function playNotes(notes, start, destination) {
+    for (const [index, [frequency, duration]] of notes.entries()) {
+      const at = start + index * 0.27;
+      const oscillator = chimeAudio.createOscillator();
+      const gain = chimeAudio.createGain();
+      oscillator.type = 'triangle';
+      oscillator.frequency.setValueAtTime(frequency, at);
+      gain.gain.setValueAtTime(0.001, at);
+      gain.gain.exponentialRampToValueAtTime(0.4, at + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.001, at + duration);
+      oscillator.connect(gain);
+      gain.connect(destination);
+      oscillator.start(at);
+      oscillator.stop(at + duration);
+    }
   }
 
-  async function playArrivalChime() {
+  function flushChime() {
+    if (!pendingChime) return;
+    const {kind, at} = pendingChime;
+    if (Date.now() - at > chimeWindow) {
+      pendingChime = null;
+      showSoundStatus('운행음이 재생되지 않았어요 · 소리 확인을 눌러 주세요');
+      return;
+    }
+    if (document.hidden || chimeAudio?.state !== 'running') {
+      showSoundStatus(AudioContext ? '운행음 대기 중 · 소리 확인을 눌러 주세요' : '이 브라우저에서 운행음을 재생할 수 없어요');
+      return;
+    }
+
+    pendingChime = null;
+    const start = chimeAudio.currentTime + 0.04;
     try {
-      const audio = arrivalAudioContext();
-      if (!audio) return;
-      if (audio.state !== 'running') {
-        if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return;
-        await audio.resume();
+      const preview = kind === 'preview';
+      let destination = chimeAudio.destination;
+      if (preview) {
+        previewGain?.disconnect();
+        previewGain = chimeAudio.createGain();
+        previewGain.connect(destination);
+        destination = previewGain;
       }
-      const start = audio.currentTime + 0.04;
-      const notes = [
-        {frequency:1318.51, duration:0.32},
-        {frequency:1046.50, duration:0.32},
-        {frequency:783.99, duration:0.56}
-      ];
-      for (let repeat = 0; repeat < 3; repeat++) {
-        for (const [index, note] of notes.entries()) {
-          const at = start + repeat * 1.45 + index * 0.27;
-          const oscillator = audio.createOscillator();
-          const gain = audio.createGain();
-          oscillator.type = 'triangle';
-          oscillator.frequency.setValueAtTime(note.frequency, at);
-          gain.gain.setValueAtTime(0.001, at);
-          gain.gain.exponentialRampToValueAtTime(0.3, at + 0.015);
-          gain.gain.exponentialRampToValueAtTime(0.001, at + note.duration);
-          oscillator.connect(gain);
-          gain.connect(audio.destination);
-          oscillator.start(at);
-          oscillator.stop(at + note.duration);
-        }
+      if (kind !== 'arrival') playNotes(departureNotes, start, destination);
+      if (kind !== 'departure') {
+        const first = preview ? start + 1.25 : start;
+        for (let repeat = 0; repeat < 3; repeat++) playNotes(arrivalNotes, first + repeat * 1.45, destination);
+        if (preview) previewEnd = first + 4;
       }
-    } catch (_) {}
+      showSoundStatus('');
+    } catch (_) {
+      showSoundStatus('운행음을 재생하지 못했어요 · 다시 눌러 주세요');
+    }
+  }
+
+  function queueChime(kind, at = Date.now()) {
+    if (Date.now() - at > chimeWindow) return;
+    if (kind !== 'preview' && previewGain) {
+      previewGain.disconnect();
+      previewGain = null;
+      previewEnd = 0;
+    }
+    pendingChime = {kind, at};
+    flushChime();
+  }
+
+  function enableChimeAudio() {
+    if (!AudioContext) return;
+    try {
+      if (!chimeAudio) {
+        chimeAudio = new AudioContext();
+        chimeAudio.addEventListener?.('statechange', flushChime);
+      }
+      if (chimeAudio.state !== 'running') {
+        chimeAudio.resume().then(flushChime, () => {});
+        // Start a silent oscillator in the same tap to unlock browsers that require it.
+        const oscillator = chimeAudio.createOscillator();
+        const mute = chimeAudio.createGain();
+        mute.gain.value = 0;
+        oscillator.connect(mute);
+        mute.connect(chimeAudio.destination);
+        oscillator.start();
+        oscillator.stop(chimeAudio.currentTime + 0.02);
+      }
+      flushChime();
+    } catch (_) {
+      showSoundStatus('운행음을 재생하지 못했어요 · 다시 눌러 주세요');
+    }
   }
 
   function read() {
@@ -226,6 +289,7 @@ const TripTimerRecords = (() => {
     if (trip?.scheduled && trip.startedAt <= now) {
       delete trip.scheduled;
       save();
+      queueChime('departure', trip.startedAt);
     }
   }
 
@@ -296,7 +360,7 @@ const TripTimerRecords = (() => {
   function finish(at, place = '') {
     const startedAt = trip?.startedAt;
     if (persistent) trip = read();
-    if (!isRunning() || trip.startedAt !== startedAt || (place && !trip.leftArea)) return;
+    if (!isRunning() || trip.startedAt !== startedAt || (place && !trip.leftArea)) return false;
     trip.arrivedAt = Math.max(startedAt, at);
     delete trip.autoArrival;
     delete trip.leftArea;
@@ -305,7 +369,8 @@ const TripTimerRecords = (() => {
     message = '';
     save();
     update();
-    playArrivalChime();
+    queueChime('arrival', trip.arrivedAt);
+    return true;
   }
 
   function onPosition(position) {
@@ -424,6 +489,7 @@ const TripTimerRecords = (() => {
     syncWatch(now);
     syncScreen(now);
     render(now);
+    flushChime();
   }
 
   function reserve(button) {
@@ -437,6 +503,7 @@ const TripTimerRecords = (() => {
     }
     const startedAt = nextDeparture(button.dataset.tripTime, button.dataset.tripDay, now);
     if (!startedAt) return;
+    enableChimeAudio();
     trip = {version:1, startedAt, arrivedAt:null, autoArrival:true, scheduled:true, history:history(trip)};
     if (gpsState === 'denied') gpsState = 'waiting';
     message = '';
@@ -459,8 +526,24 @@ const TripTimerRecords = (() => {
     message = '';
     save();
     update();
+    if (isRunning()) {
+      enableChimeAudio();
+      queueChime('departure', trip.startedAt);
+    }
   });
-  arrive.addEventListener('click', () => finish(Date.now()));
+  arrive.addEventListener('click', () => {
+    if (finish(Date.now())) enableChimeAudio();
+  });
+  soundCheck.addEventListener('click', () => {
+    flushChime();
+    if (pendingChime) {
+      enableChimeAudio();
+      return;
+    }
+    if ((chimeAudio?.currentTime ?? 0) < previewEnd) return;
+    enableChimeAudio();
+    queueChime('preview');
+  });
   retry.addEventListener('click', () => {
     gpsState = 'waiting';
     message = '';
@@ -471,8 +554,9 @@ const TripTimerRecords = (() => {
   document.addEventListener('click', event => {
     const button = event.target.closest('#rows button[data-trip-time]');
     if (button) reserve(button);
-    // Mobile browsers unlock Web Audio during a user gesture, before GPS finishes the trip.
-    if (trip?.autoArrival && arrivalAudio?.state !== 'running') enableArrivalAudio();
+    // A restored or interrupted trip can unlock audio on the next tap.
+    else if ((trip?.autoArrival || pendingChime) && chimeAudio?.state !== 'running'
+        && ![depart, arrive, soundCheck].includes(event.target)) enableChimeAudio();
   });
   // Refresh new buttons after the timetable is rebuilt or a different day is selected.
   const rows = document.getElementById('rows');

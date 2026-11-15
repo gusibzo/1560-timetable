@@ -64,7 +64,9 @@ function boot(storage, initial = base, blocked = false, holidays = [], AudioCont
     at(value) { now = value; interval(); },
     click(id) {
       node(id).events.click();
-      documentEvents.click({target:{closest:()=>null}});
+      const target = node(id);
+      target.closest = () => null;
+      documentEvents.click({target});
     },
     elapsed() { return node('tripElapsed').textContent; }};
 }
@@ -276,40 +278,86 @@ class TestAudioContext {
     return {
       frequency:{setValueAtTime(value) { frequency = value; }},
       connect() {},
-      start(at) { notes.push({frequency, at}); },
+      start(at) { if (frequency !== undefined) notes.push({frequency, at}); },
       stop() {}
     };
   }
   createGain() {
-    return {gain:{setValueAtTime() {}, exponentialRampToValueAtTime() {}}, connect() {}};
+    return {gain:{setValueAtTime() {}, exponentialRampToValueAtTime() {}}, connect() {}, disconnect() {}};
   }
 }
 const chimeStorage = {};
 const chime = boot(chimeStorage, slot - 1000, false, [], TestAudioContext);
 const secondTab = boot(chimeStorage, slot - 1000, false, [], TestAudioContext);
+secondTab.click('tripSoundCheck');
+assert.equal(notes.length, 11, 'The preview plays both chimes without starting the timer');
+assert.equal(chimeStorage[key], undefined);
+secondTab.click('tripSoundCheck');
+assert.equal(notes.length, 11, 'Repeated preview taps do not layer chimes');
+notes.length = 0;
 chime.reserve('9:20');
-assert.equal(audioResumes, 1, 'The reservation tap enables audio for the later GPS callback');
+assert.equal(audioResumes, 2, 'The reservation tap enables audio for the later GPS callback');
+assert.equal(notes.length, 0, 'The reservation tap is quiet until departure');
+secondTab.windowEvents.storage({key});
 chime.at(slot + 1000);
+secondTab.at(slot + 1000);
 chime.fix(37.254, 127.081);
-assert.equal(notes.length, 0, 'Departure is silent');
+assert.deepEqual(notes.map(note => note.frequency), [1046.50, 1318.51], 'Play the departure chime once');
 chime.at(slot + 120000);
 chime.fix(37.2476648, 127.0791747);
-assert.equal(notes.length, 9, 'Play three notes three times on automatic arrival');
+assert.equal(notes.length, 11, 'Play three notes three times on automatic arrival');
 for (const repeat of [0, 1, 2]) {
-  const group = notes.slice(repeat * 3, repeat * 3 + 3);
+  const group = notes.slice(2 + repeat * 3, 5 + repeat * 3);
   assert.deepEqual(group.map(note => note.frequency), [1318.51, 1046.50, 783.99]);
   assert.deepEqual(group.map(note => Math.round(note.at * 100)), [4, 31, 58].map(at => at + repeat * 145));
 }
 chime.click('tripArrive');
 chime.windowEvents.pageshow();
 secondTab.windowEvents.storage({key});
-assert.equal(notes.length, 9, 'Repeated taps and restoring arrival do not replay the chime');
+assert.equal(notes.length, 11, 'Repeated taps and restoring arrival do not replay the chime');
 const manualChime = boot({}, slot, false, [], TestAudioContext);
 manualChime.click('tripDepart');
-assert.equal(audioResumes, 2, 'The manual departure tap also enables audio');
+assert.equal(audioResumes, 3, 'The manual departure tap also enables audio');
+assert.equal(notes.length, 13, 'Manual departure plays two notes immediately');
 manualChime.at(slot + 1000);
 manualChime.click('tripArrive');
-assert.equal(notes.length, 18, 'Manual arrival plays the same chime');
+assert.equal(notes.length, 22, 'Manual arrival plays the same chime');
+
+notes.length = 0;
+let audioBlocked = true;
+class InterruptedAudioContext extends TestAudioContext {
+  async resume() {
+    if (audioBlocked) throw Error('Playback blocked');
+    await super.resume();
+  }
+}
+const blockedChime = boot({}, slot, false, [], InterruptedAudioContext);
+blockedChime.click('tripDepart');
+assert.equal(notes.length, 0);
+assert.match(blockedChime.node('tripSoundStatus').textContent, /운행음 대기 중/);
+audioBlocked = false;
+blockedChime.click('tripSoundCheck');
+assert.equal(notes.length, 2, 'A new tap plays the pending departure without layering the preview');
+assert.equal(blockedChime.node('tripSoundStatus').hidden, true);
+
+notes.length = 0;
+const restoredChime = boot({[key]:JSON.stringify({version:1, startedAt:slot, arrivedAt:null, autoArrival:true, leftArea:true})}, slot + 120000, false, [], TestAudioContext);
+restoredChime.fix(37.2476648, 127.0791747);
+assert.equal(restoredChime.node('tripTimer').dataset.state, 'arrived');
+assert.match(restoredChime.node('tripSoundStatus').textContent, /운행음 대기 중/);
+restoredChime.click('tripSoundCheck');
+assert.equal(notes.length, 9, 'A tap recovers the GPS arrival chime after a reload');
+
+notes.length = 0;
+const missedDepartureStorage = {};
+const missedDeparture = boot(missedDepartureStorage, slot - 1000, false, [], TestAudioContext);
+missedDeparture.reserve('9:20');
+missedDeparture.doc.hidden = true;
+missedDeparture.at(slot + 120000);
+missedDeparture.doc.hidden = false;
+missedDeparture.documentEvents.visibilitychange();
+assert.equal(missedDeparture.node('tripTimer').dataset.state, 'running');
+assert.equal(notes.length, 0, 'Do not replay a stale departure on return to the page');
 
 console.log('Trip timer: blue until departure, yellow during and after the trip, and three chimes per arrival');
 console.log('Rev195: manual and restored trips use GPS, stationary GPS fallback, and moderate location error passed');
