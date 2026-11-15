@@ -2,7 +2,8 @@ import {readFileSync} from 'node:fs';
 import {strict as assert} from 'node:assert';
 import vm from 'node:vm';
 
-const html = readFileSync((process.argv[2] || '_site') + '/index.html', 'utf8');
+const root = process.argv[2] || '_site';
+const html = readFileSync(root + '/index.html', 'utf8');
 const core = html.match(/<script id="trip-records-core">([\s\S]*?)<\/script>/)[1];
 const code = html.match(/<script id="rev189-trip-timer">([\s\S]*?)<\/script>/)[1];
 assert.equal((html.match(/id="tripTimer"/g) || []).length, 1);
@@ -36,6 +37,10 @@ function boot(storage, initial = base, blocked = false, holidays = [], AudioCont
     addEventListener(name, cb) { documentEvents[name] = cb; }};
   const dates = html.match(/<script id="rev141-korea-date">([\s\S]*?)<\/script>/)[1];
   vm.runInNewContext(dates + '\n' + core + '\n' + code, {Date:Clock, document:doc, navigator,
+    fetch: async path => ({
+      ok:true,
+      async arrayBuffer() { return path; }
+    }),
     calendarInfo: date => ({holidays: holidays.includes(new Date(date.getTime()+32400000).toISOString().slice(0,10)) ? ['공휴일'] : []}),
     rev92DistanceMetres: (a,b) => Math.hypot((a.latitude-b.latitude)*111195,(a.longitude-b.longitude)*88400),
     MutationObserver: class {
@@ -184,11 +189,13 @@ assert.equal(JSON.parse(upcoming[key]).arrivedAt, null, 'Reject an inaccurate ar
 scheduled.fix(37.2476648, 127.0791747, 10, slot + 900500);
 assert.equal(JSON.parse(upcoming[key]).arrivalPlace, '경희대 사거리');
 assert.equal(JSON.parse(upcoming[key]).arrivedAt, slot + 900500, 'Use the GPS fix timestamp');
-assert.equal(scheduled.watches.size, 0);
+assert.equal(scheduled.watches.size, 1, 'Keep GPS active after recording the intersection');
 assert.equal(scheduled.elapsed(), '00:15:00');
 assert.deepEqual(JSON.parse(upcoming[key]).history, [{startedAt:slot, arrivedAt:slot + 900500}, earlier]);
 scheduled.at(slot + 980000);
 assert.equal(scheduled.elapsed(), '00:15:00');
+scheduled.at(slot + 1201000);
+assert.equal(scheduled.watches.size, 0, 'Stop tracking after the gate announcement window');
 
 const reopened = boot({}, slot - 10000);
 reopened.reserve('9:20');
@@ -267,12 +274,25 @@ colors.click('tripArrive');
 assert.equal(colors.node('tripTimer').dataset.state, 'arrived');
 
 const notes = [];
+const spoken = [];
+const departureVoice = './audio/trip/departure-ko.mp3';
+const gateVoice = './audio/trip/kyung-hee-gate-ko.mp3';
+const worker = readFileSync(root + '/sw.js', 'utf8');
+for (const path of [departureVoice, gateVoice]) {
+  assert.ok(worker.includes(JSON.stringify(path)), 'Precache each voice in the service worker');
+  assert.ok(readFileSync(root + '/' + path).length > 0, 'Deploy each speech clip');
+}
+const settleAudio = () => new Promise(resolve => setImmediate(resolve));
 let audioResumes = 0;
 class TestAudioContext {
   state = 'suspended';
   currentTime = 0;
   destination = {};
   async resume() { audioResumes++; this.state = 'running'; }
+  async decodeAudioData(path) { return {path, duration:1.4}; }
+  createBufferSource() {
+    return {connect() {}, start(at) { spoken.push({path:this.buffer.path, at}); }};
+  }
   createOscillator() {
     let frequency;
     return {
@@ -290,40 +310,56 @@ const chimeStorage = {};
 const chime = boot(chimeStorage, slot - 1000, false, [], TestAudioContext);
 const secondTab = boot(chimeStorage, slot - 1000, false, [], TestAudioContext);
 secondTab.click('tripSoundCheck');
-assert.equal(notes.length, 11, 'The preview plays both chimes without starting the timer');
+await settleAudio();
+assert.deepEqual(spoken.map(voice => voice.path), [departureVoice, gateVoice]);
+assert.ok(spoken[1].at >= spoken[0].at + 1.4, 'The two preview sentences play in order');
+assert.equal(notes.length, 0, 'The preview uses the voice recordings');
 assert.equal(chimeStorage[key], undefined);
 secondTab.click('tripSoundCheck');
-assert.equal(notes.length, 11, 'Repeated preview taps do not layer chimes');
-notes.length = 0;
+assert.equal(spoken.length, 2, 'Repeated preview taps do not layer announcements');
+spoken.length = 0;
 chime.reserve('9:20');
+await settleAudio();
 assert.equal(audioResumes, 2, 'The reservation tap enables audio for the later GPS callback');
-assert.equal(notes.length, 0, 'The reservation tap is quiet until departure');
+assert.equal(spoken.length, 0, 'The reservation tap is quiet until departure');
 secondTab.windowEvents.storage({key});
 chime.at(slot + 1000);
 secondTab.at(slot + 1000);
 chime.fix(37.254, 127.081);
-assert.deepEqual(notes.map(note => note.frequency), [1046.50, 1318.51], 'Play the departure chime once');
+assert.deepEqual(spoken.map(voice => voice.path), [departureVoice], 'Speak once at the scheduled departure');
 chime.at(slot + 120000);
 chime.fix(37.2476648, 127.0791747);
-assert.equal(notes.length, 11, 'Play three notes three times on automatic arrival');
+assert.equal(notes.length, 9, 'The intersection still plays three chimes');
+assert.equal(spoken.length, 1, 'Wait for the gate before speaking the arrival announcement');
 for (const repeat of [0, 1, 2]) {
-  const group = notes.slice(2 + repeat * 3, 5 + repeat * 3);
+  const group = notes.slice(repeat * 3, 3 + repeat * 3);
   assert.deepEqual(group.map(note => note.frequency), [1318.51, 1046.50, 783.99]);
   assert.deepEqual(group.map(note => Math.round(note.at * 100)), [4, 31, 58].map(at => at + repeat * 145));
 }
+const recordedAt = JSON.parse(chimeStorage[key]).arrivedAt;
+chime.at(slot + 130000);
+chime.fix(37.247333, 127.078440);
+assert.deepEqual(spoken.map(voice => voice.path), [departureVoice, gateVoice], 'Speak on reaching the gate after the intersection');
+assert.equal(JSON.parse(chimeStorage[key]).arrivedAt, recordedAt, 'Gate speech leaves the recorded arrival time intact');
+assert.equal(chime.watches.size, 0, 'Stop watching after the gate announcement');
+chime.at(slot + 135000);
+chime.fix(37.247333, 127.078440);
 chime.click('tripArrive');
 chime.windowEvents.pageshow();
 secondTab.windowEvents.storage({key});
-assert.equal(notes.length, 11, 'Repeated taps and restoring arrival do not replay the chime');
+assert.equal(notes.length, 9, 'Repeated taps and restoring arrival do not replay the chime');
+assert.equal(spoken.length, 2, 'Repeated GPS fixes and restores do not replay the gate voice');
 const manualChime = boot({}, slot, false, [], TestAudioContext);
 manualChime.click('tripDepart');
+await settleAudio();
 assert.equal(audioResumes, 3, 'The manual departure tap also enables audio');
-assert.equal(notes.length, 13, 'Manual departure plays two notes immediately');
+assert.equal(spoken.at(-1).path, departureVoice, 'Manual departure also speaks');
 manualChime.at(slot + 1000);
 manualChime.click('tripArrive');
-assert.equal(notes.length, 22, 'Manual arrival plays the same chime');
+assert.equal(notes.length, 18, 'Manual arrival plays the same chime');
 
 notes.length = 0;
+spoken.length = 0;
 let audioBlocked = true;
 class InterruptedAudioContext extends TestAudioContext {
   async resume() {
@@ -333,22 +369,24 @@ class InterruptedAudioContext extends TestAudioContext {
 }
 const blockedChime = boot({}, slot, false, [], InterruptedAudioContext);
 blockedChime.click('tripDepart');
-assert.equal(notes.length, 0);
+await settleAudio();
+assert.equal(spoken.length, 0);
 assert.match(blockedChime.node('tripSoundStatus').textContent, /운행음 대기 중/);
 audioBlocked = false;
 blockedChime.click('tripSoundCheck');
-assert.equal(notes.length, 2, 'A new tap plays the pending departure without layering the preview');
+assert.deepEqual(spoken.map(voice => voice.path), [departureVoice], 'A new tap plays only the pending departure');
 assert.equal(blockedChime.node('tripSoundStatus').hidden, true);
 
-notes.length = 0;
+spoken.length = 0;
 const restoredChime = boot({[key]:JSON.stringify({version:1, startedAt:slot, arrivedAt:null, autoArrival:true, leftArea:true})}, slot + 120000, false, [], TestAudioContext);
-restoredChime.fix(37.2476648, 127.0791747);
+restoredChime.fix(37.247333, 127.078440);
 assert.equal(restoredChime.node('tripTimer').dataset.state, 'arrived');
 assert.match(restoredChime.node('tripSoundStatus').textContent, /운행음 대기 중/);
 restoredChime.click('tripSoundCheck');
-assert.equal(notes.length, 9, 'A tap recovers the GPS arrival chime after a reload');
+await settleAudio();
+assert.deepEqual(spoken.map(voice => voice.path), [gateVoice], 'A tap recovers the direct GPS gate announcement after a reload');
 
-notes.length = 0;
+spoken.length = 0;
 const missedDepartureStorage = {};
 const missedDeparture = boot(missedDepartureStorage, slot - 1000, false, [], TestAudioContext);
 missedDeparture.reserve('9:20');
@@ -357,9 +395,10 @@ missedDeparture.at(slot + 120000);
 missedDeparture.doc.hidden = false;
 missedDeparture.documentEvents.visibilitychange();
 assert.equal(missedDeparture.node('tripTimer').dataset.state, 'running');
-assert.equal(notes.length, 0, 'Do not replay a stale departure on return to the page');
+await settleAudio();
+assert.equal(spoken.length, 0, 'Do not replay a stale departure on return to the page');
 
-console.log('Trip timer: blue until departure, yellow during and after the trip, and three chimes per arrival');
+console.log('Trip timer: Korean speech for departure and main gate, and three chimes for manual or intersection arrival');
 console.log('Rev195: manual and restored trips use GPS, stationary GPS fallback, and moderate location error passed');
 console.log('Rev195: time selection, scheduled start, holiday rollover, GPS departure and return, both destinations, permission retry, and manual arrival passed');
 console.log('Rev189: trip start/arrival, sleep and reload recovery, midnight, fixed result, new trip, repeated taps, cross-tab restoration and unavailable/corrupt storage passed');
