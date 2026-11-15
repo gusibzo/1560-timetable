@@ -16,7 +16,7 @@
   outline-offset:3px;
   border-radius:4px;
 }
-#tripTimer[data-state="scheduled"] #tripElapsed{color:#ffdf58}
+#tripTimer[data-state="scheduled"] #tripElapsed{color:#82caff}
 #tripLocation{
   grid-column:1/-1;
   margin-top:5px;

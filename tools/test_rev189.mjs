@@ -11,7 +11,7 @@ assert.ok(html.indexOf('id="tripTimer"') < html.indexOf('<nav class="switch"'));
 assert.ok(html.indexOf('id="rev189-trip-timer"') > html.indexOf('<tbody id="rows">'));
 const key = 'bus1560-trip-timer-v1';
 const base = Date.parse('2026-11-10T14:59:50Z'); // 23:59:50 in Korea.
-function boot(storage, initial = base, blocked = false, holidays = []) {
+function boot(storage, initial = base, blocked = false, holidays = [], AudioContext) {
   const nodes = new Map(), windowEvents = {}, documentEvents = {};
   let now = initial, interval, nextWatch = 0;
   const watches = new Map();
@@ -42,7 +42,7 @@ function boot(storage, initial = base, blocked = false, holidays = []) {
       constructor(callback) { rebuild = callback; }
       observe(target) { assert.equal(target, node('rows')); }
     },
-    window:{addEventListener(name, cb) { windowEvents[name] = cb; }},
+    window:{AudioContext, addEventListener(name, cb) { windowEvents[name] = cb; }},
     localStorage:{getItem(k) { if (blocked) throw Error('blocked'); return storage[k] ?? null; },
       setItem(k, value) { if (blocked) throw Error('blocked'); storage[k] = value; }},
     setInterval(cb) { interval = cb; }});
@@ -62,7 +62,10 @@ function boot(storage, initial = base, blocked = false, holidays = []) {
     },
     denied() { for (const watch of [...watches.values()]) watch.error({code:1}); },
     at(value) { now = value; interval(); },
-    click(id) { node(id).events.click(); },
+    click(id) {
+      node(id).events.click();
+      documentEvents.click({target:{closest:()=>null}});
+    },
     elapsed() { return node('tripElapsed').textContent; }};
 }
 const storage = {};
@@ -246,8 +249,8 @@ assert.equal(JSON.parse(manualData[key]).arrivalPlace, '경희대 정문', 'Late
 const legacyRun = boot({[key]:JSON.stringify({version:1,startedAt:slot,arrivedAt:null})}, slot+10000);
 assert.equal(legacyRun.watches.size, 1, 'Restore GPS for existing manually started trips');
 
-assert.match(html, /#tripTimer\[data-state="scheduled"\] #tripElapsed\{color:#ffdf58\}/);
-assert.match(html, /#tripTimer\[data-state="running"\] #tripElapsed,\s*#tripTimer\[data-state="arrived"\] #tripElapsed\{color:#82caff\}/);
+assert.match(html, /#tripTimer\[data-state="scheduled"\] #tripElapsed\{color:#82caff\}/);
+assert.match(html, /#tripTimer\[data-state="running"\] #tripElapsed,\s*#tripTimer\[data-state="arrived"\] #tripElapsed\{color:#ffdf58\}/);
 assert.doesNotMatch(html, /data-trip-phase/);
 const colors = boot({}, slot-1000);
 const selectedSlot = colors.slot('9:20');
@@ -261,7 +264,54 @@ colors.at(slot + 120000);
 colors.click('tripArrive');
 assert.equal(colors.node('tripTimer').dataset.state, 'arrived');
 
-console.log('Rev196: timer changes color at departure and keeps the elapsed color on arrival');
+const notes = [];
+let audioResumes = 0;
+class TestAudioContext {
+  state = 'suspended';
+  currentTime = 0;
+  destination = {};
+  async resume() { audioResumes++; this.state = 'running'; }
+  createOscillator() {
+    let frequency;
+    return {
+      frequency:{setValueAtTime(value) { frequency = value; }},
+      connect() {},
+      start(at) { notes.push({frequency, at}); },
+      stop() {}
+    };
+  }
+  createGain() {
+    return {gain:{setValueAtTime() {}, exponentialRampToValueAtTime() {}}, connect() {}};
+  }
+}
+const chimeStorage = {};
+const chime = boot(chimeStorage, slot - 1000, false, [], TestAudioContext);
+const secondTab = boot(chimeStorage, slot - 1000, false, [], TestAudioContext);
+chime.reserve('9:20');
+assert.equal(audioResumes, 1, 'The reservation tap enables audio for the later GPS callback');
+chime.at(slot + 1000);
+chime.fix(37.254, 127.081);
+assert.equal(notes.length, 0, 'Departure is silent');
+chime.at(slot + 120000);
+chime.fix(37.2476648, 127.0791747);
+assert.equal(notes.length, 9, 'Play three notes three times on automatic arrival');
+for (const repeat of [0, 1, 2]) {
+  const group = notes.slice(repeat * 3, repeat * 3 + 3);
+  assert.deepEqual(group.map(note => note.frequency), [1318.51, 1046.50, 783.99]);
+  assert.deepEqual(group.map(note => Math.round(note.at * 100)), [4, 31, 58].map(at => at + repeat * 145));
+}
+chime.click('tripArrive');
+chime.windowEvents.pageshow();
+secondTab.windowEvents.storage({key});
+assert.equal(notes.length, 9, 'Repeated taps and restoring arrival do not replay the chime');
+const manualChime = boot({}, slot, false, [], TestAudioContext);
+manualChime.click('tripDepart');
+assert.equal(audioResumes, 2, 'The manual departure tap also enables audio');
+manualChime.at(slot + 1000);
+manualChime.click('tripArrive');
+assert.equal(notes.length, 18, 'Manual arrival plays the same chime');
+
+console.log('Trip timer: blue until departure, yellow during and after the trip, and three chimes per arrival');
 console.log('Rev195: manual and restored trips use GPS, stationary GPS fallback, and moderate location error passed');
 console.log('Rev195: time selection, scheduled start, holiday rollover, GPS departure and return, both destinations, permission retry, and manual arrival passed');
 console.log('Rev189: trip start/arrival, sleep and reload recovery, midnight, fixed result, new trip, repeated taps, cross-tab restoration and unavailable/corrupt storage passed');
