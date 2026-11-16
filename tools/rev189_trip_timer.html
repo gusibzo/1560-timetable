@@ -8,13 +8,19 @@
 #tripTimer button:disabled{background:#334f6b;color:#b2c2d1;cursor:default}
 #tripTimer button:focus-visible{outline:3px solid #fff;outline-offset:3px}
 #tripTimer button:active:not(:disabled){transform:translateY(1px)}
-#tripElapsed{display:block;text-align:center;white-space:nowrap;font-size:clamp(22px,6.4vw,34px);font-weight:950;line-height:1.15;font-variant-numeric:tabular-nums;letter-spacing:-.6px;color:#fff}
+#tripTimer .trip-readout{min-width:0;text-align:center;font-size:12px;line-height:1.2;color:#c7dbed}
+#tripTimer .trip-departure-clock{margin:3px 0 1px;font-weight:800}
+#tripDepartTime{display:inline-block;white-space:nowrap;color:#fff;font-variant-numeric:tabular-nums}
+#tripTimer .trip-elapsed-line{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:center;column-gap:4px}
+#tripElapsedLabel{white-space:nowrap;font-size:11px}
+#tripElapsed{white-space:nowrap;font-size:clamp(22px,6.4vw,34px);font-weight:950;line-height:1.15;font-variant-numeric:tabular-nums;letter-spacing:-.6px;color:#fff}
 #tripTimer[data-state="running"] #tripElapsed,
 #tripTimer[data-state="arrived"] #tripElapsed{color:#ffdf58}
 #tripTimer .trip-times{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;font-size:12px;line-height:1.3;color:#c7dbed;font-variant-numeric:tabular-nums}
 #tripTimer .trip-times>span{white-space:nowrap}
-#tripTimer .trip-times>span:last-child{text-align:right}
+#tripTimer .trip-times>span:last-child{grid-column:2;text-align:right}
 #tripTimer .trip-times time{color:#fff;font-weight:800}
+#tripRemaining{color:#82caff;font-weight:800}
 #tripTimer .trip-audio{display:flex;align-items:center;gap:8px;margin-top:6px}
 #tripTimer #tripSoundCheck{flex:none;min-height:44px;padding:6px 10px;border:1px solid #aac3d9;background:transparent;color:#fff;font-size:14px}
 #tripSoundStatus{margin:0;color:#ffdf58;font-size:12px}
@@ -25,10 +31,19 @@
   <div class="trip-heading"><span>운행 타이머</span><span id="tripStatus" role="status">출발 대기</span></div>
   <div class="trip-controls">
     <button id="tripDepart" type="button">출발</button>
-    <output id="tripElapsed" role="timer" aria-label="운행 경과 시간" aria-live="off">00:00:00</output>
+    <div class="trip-readout">
+      <p class="trip-departure-clock"><span id="tripDepartLabel">출발 시각</span> <time id="tripDepartTime">--:--:--</time></p>
+      <div class="trip-elapsed-line">
+        <span id="tripElapsedLabel">경과 시간</span>
+        <output id="tripElapsed" role="timer" aria-labelledby="tripElapsedLabel" aria-live="off">00:00:00</output>
+      </div>
+    </div>
     <button id="tripArrive" type="button" disabled>도착</button>
   </div>
-  <div class="trip-times"><span>출발 <time id="tripDepartTime">--:--:--</time></span><span>도착 <time id="tripArriveTime">--:--:--</time></span></div>
+  <div class="trip-times">
+    <span id="tripCountdown" hidden>출발까지 <output id="tripRemaining" role="timer" aria-label="출발까지 남은 시간" aria-live="off">00:00:00</output></span>
+    <span>도착 <time id="tripArriveTime">--:--:--</time></span>
+  </div>
   <div class="trip-audio">
     <button id="tripSoundCheck" type="button">출발·도착 음성 확인</button>
     <p id="tripSoundStatus" role="status" hidden></p>
@@ -71,6 +86,7 @@ const TripTimerRecords = (() => {
       if (trip.scheduled === true) saved.scheduled = true;
       else if (trip.leftArea === true) saved.leftArea = true;
     }
+    if (trip.reservedDeparture === true || saved.scheduled) saved.reservedDeparture = true;
     if (trip.arrivedAt !== null && typeof trip.arrivalPlace === 'string') saved.arrivalPlace = trip.arrivalPlace;
     if (trip.arrivedAt !== null && trip.gateAnnouncementPending === true) saved.gateAnnouncementPending = true;
     return saved;
@@ -94,7 +110,10 @@ const TripTimerRecords = (() => {
   const arrive = document.getElementById('tripArrive');
   const elapsed = document.getElementById('tripElapsed');
   const status = document.getElementById('tripStatus');
+  const departLabel = document.getElementById('tripDepartLabel');
   const departTime = document.getElementById('tripDepartTime');
+  const countdown = document.getElementById('tripCountdown');
+  const remaining = document.getElementById('tripRemaining');
   const arriveTime = document.getElementById('tripArriveTime');
   const soundCheck = document.getElementById('tripSoundCheck');
   const soundStatus = document.getElementById('tripSoundStatus');
@@ -335,17 +354,17 @@ const TripTimerRecords = (() => {
   function render(now = Date.now()) {
     const scheduled = Boolean(trip?.scheduled);
     const running = isRunning();
-    const remaining = scheduled
-      ? Math.ceil(Math.max(0, trip.startedAt - now) / 1000) * 1000
-      : trip ? (running ? now : trip.arrivedAt) - trip.startedAt : 0;
-    elapsed.textContent = duration(remaining);
-    elapsed.setAttribute('aria-label', scheduled ? '예약 출발까지 남은 시간' : '운행 경과 시간');
+    const elapsedTime = trip && !scheduled ? (running ? now : trip.arrivedAt) - trip.startedAt : 0;
+    elapsed.textContent = duration(elapsedTime);
+    countdown.hidden = !scheduled;
+    if (scheduled) remaining.textContent = duration(Math.ceil(Math.max(0, trip.startedAt - now) / 1000) * 1000);
     panel.dataset.state = scheduled ? 'scheduled' : running ? 'running' : trip ? 'arrived' : 'idle';
     const label = scheduled ? '출발 예약' : running ? '운행 중' : trip ? '운행 완료' : '출발 대기';
     if (status.textContent !== label) status.textContent = label;
     depart.disabled = running;
     depart.textContent = scheduled ? '예약 취소' : trip && !running ? '새 출발' : '출발';
     arrive.disabled = !running;
+    departLabel.textContent = trip?.reservedDeparture ? '예약 출발' : '출발 시각';
     showTime(departTime, trip?.startedAt ?? null, now);
     showTime(arriveTime, trip?.arrivedAt ?? null, now);
     storageNote.hidden = persistent;
@@ -564,6 +583,7 @@ const TripTimerRecords = (() => {
       if (startedAt === null) return;
       trip = {version:1, startedAt, arrivedAt:null, autoArrival:true, scheduled:true, history:history(trip)};
     }
+    trip.reservedDeparture = true;
     enableChimeAudio();
     if (gpsState === 'denied') gpsState = 'waiting';
     message = '';
