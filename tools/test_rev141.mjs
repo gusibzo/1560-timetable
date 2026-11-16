@@ -84,6 +84,26 @@ for (const script of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)) {
 
 if (!html.includes("Rev."+expectedRevision) || !readFileSync(root+"/sw.js","utf8").includes('REVISION="'+expectedRevision+'"')) throw new Error("Revision mismatch");
 if (html.includes("rev124TodayIsFiveBus")) throw new Error("Obsolete temporary timetable");
+if (Number(expectedRevision) >= 203) {
+  const heading = between('<div class="calendar-week"', '</div>');
+  const days = Array.from(heading.matchAll(/<span[^>]*>(.)<\/span>/g), match => match[1]).join('');
+  if (days !== '월화수목금토일') throw new Error('Work calendar weekdays are out of order');
+  const calendarDraw = between('function drawCalendar(){', 'function openCalendar()');
+  const draws = [];
+  const grid = {appendChild(button) { draws.push(button.label); }};
+  const mockDocument = {createElement: () => ({
+    classList:{add() {}}, setAttribute(name, value) { this.label = value; }, addEventListener() {}
+  })};
+  const CalendarDate = new Function(helper + '\nreturn TimetableDate;')();
+  const calendarText = day => new Intl.DateTimeFormat('en-CA', {timeZone:'Asia/Seoul', year:'numeric', month:'2-digit', day:'2-digit'}).format(day);
+  new Function('calView', 'calMonth', 'calendarGrid', 'lunarInfo', 'calendarInfo', 'document', 'sameDate', 'calPicked', 'dateLabel',
+    helper + '\n' + calendarDraw + '\ndrawCalendar();')(
+    new CalendarDate(2026, 10, 1), {}, grid, () => ({label:''}), () => ({holidays:[], events:[]}), mockDocument, () => false, null, calendarText
+  );
+  if (!draws[0].startsWith('2026-10-26') || !draws[6].startsWith('2026-11-01') || draws.length !== 42) {
+    throw new Error('November 2026 must start in the Sunday column of a Monday-first week');
+  }
+}
 for (const revision of [94,95,96]) {
   const page = readFileSync(root+"/1560_timetable_Rev"+revision+"_KCC_CCTV.html","utf8");
   const script = page.match(/<script>([\s\S]*?)<\/script>/)[1];

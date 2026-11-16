@@ -23,10 +23,12 @@
 #tripTimer .trip-times>span:last-child{grid-column:2;text-align:right}
 #tripTimer .trip-times time{color:#fff;font-weight:800}
 #tripRemaining{color:#82caff;font-weight:800}
-#tripTimer .trip-audio{grid-column:1/-1;display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;margin-top:6px}
-#tripTimer #tripSoundCheck{flex:none;min-height:44px;padding:6px 10px;border:1px solid #aac3d9;background:transparent;color:#fff;font-size:14px}
-#tripSoundStatus{margin:0;color:#ffdf58;font-size:12px}
-#tripLocation{grid-column:1/-1}
+#tripTimer .trip-audio{grid-column:1/-1;display:flex;align-items:center;gap:5px;margin-top:2px}
+#tripTimer #tripSoundCheck{flex:0 0 33px;min-height:32px;padding:0;border:1px solid #aac3d9;background:transparent;color:#fff;font-size:15px}
+#tripBackgroundAlert{margin-left:auto;padding:7px 5px;border-radius:7px;color:#c7dbed;font-size:10px;line-height:1.2;text-align:center}
+#tripSoundStatus{flex:1;min-width:0;margin:0;color:#ffdf58;font-size:10px}
+#tripLocation{flex:1;min-width:0;margin:0;padding:0;text-align:left;font-size:10px;line-height:1.25}
+#tripTimer #tripGpsRetry{min-height:28px;padding:2px 4px;font-size:10px}
 #tripStorageNote{margin-top:6px;font-size:11px;color:#ffdf58}
 @media(max-width:360px){#tripTimer{padding:9px 8px}#tripTimer .trip-controls{gap:6px}#tripTimer button{font-size:17px}#tripTimer .trip-times{font-size:11px}}
 </style>
@@ -53,12 +55,13 @@
     <span>도착 <time id="tripArriveTime">--:--:--</time></span>
   </div>
   <div class="trip-audio">
-    <button id="tripSoundCheck" type="button">출발·도착 음성 확인</button>
+    <button id="tripSoundCheck" type="button" aria-label="출발·도착 음성 확인" title="출발·도착 음성 확인"><span aria-hidden="true">🔊</span></button>
     <p id="tripSoundStatus" role="status" hidden></p>
-  </div>
-  <div id="tripLocation" class="trip-location" hidden>
-    <span id="tripLocationStatus" role="status"></span>
-    <button id="tripGpsRetry" type="button" hidden>GPS 다시 연결</button>
+    <div id="tripLocation" class="trip-location" hidden>
+      <span id="tripLocationStatus" role="status"></span>
+      <button id="tripGpsRetry" type="button" hidden>GPS 다시 연결</button>
+    </div>
+    <a id="tripBackgroundAlert" hidden>화면 꺼짐 알림</a>
   </div>
   <p id="tripStorageNote" role="status" hidden>저장할 수 없어 이 화면에서만 유지됩니다.</p>
 </section>
@@ -131,6 +134,7 @@ const TripTimerRecords = (() => {
   const arriveTime = document.getElementById('tripArriveTime');
   const soundCheck = document.getElementById('tripSoundCheck');
   const soundStatus = document.getElementById('tripSoundStatus');
+  const backgroundAlert = document.getElementById('tripBackgroundAlert');
   const storageNote = document.getElementById('tripStorageNote');
   const locationBar = document.getElementById('tripLocation');
   const locationStatus = document.getElementById('tripLocationStatus');
@@ -169,6 +173,8 @@ const TripTimerRecords = (() => {
   const departureNotes = [[1046.50, 0.28], [783.99, 0.42]];
   const arrivalNotes = [[1318.51, 0.32], [1046.50, 0.32], [783.99, 0.56]];
   const chimeWindow = 60000;
+  const soundKey = key + '-sound';
+  const tripSounds = ['departure', 'arrival', 'gate', 'gate-voice'];
   let chimeAudio = null;
   const pendingChimes = [];
   const voices = {};
@@ -178,6 +184,27 @@ const TripTimerRecords = (() => {
   function showSoundStatus(text) {
     if (soundStatus.textContent !== text) soundStatus.textContent = text;
     soundStatus.hidden = !text;
+  }
+
+  function storedSounds(now) {
+    try {
+      const pending = JSON.parse(localStorage.getItem(soundKey) || '[]');
+      if (!Array.isArray(pending)) return [];
+      return pending.filter(event => event && tripSounds.includes(event.kind)
+        && Number.isSafeInteger(event.at) && event.at <= now && now - event.at <= chimeWindow);
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function saveSounds(events) {
+    try {
+      if (events.length) localStorage.setItem(soundKey, JSON.stringify(events));
+      else localStorage.removeItem(soundKey);
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   function playNotes(notes, start) {
@@ -246,11 +273,11 @@ const TripTimerRecords = (() => {
     const now = Date.now();
     while (pendingChimes.length && now - pendingChimes[0].at > chimeWindow) pendingChimes.shift();
     if (!pendingChimes.length) {
-      showSoundStatus('운행음이 재생되지 않았어요 · 소리 확인을 눌러 주세요');
+      showSoundStatus('운행음 미재생 · 🔊 확인');
       return;
     }
     if (chimeAudio?.state !== 'running') {
-      showSoundStatus(AudioContext ? '운행음 대기 중 · 소리 확인을 눌러 주세요' : '이 브라우저에서 운행음을 재생할 수 없어요');
+      showSoundStatus(AudioContext ? '운행음 대기 중 · 🔊 누르기' : '운행음 지원 안 됨');
       return;
     }
 
@@ -258,13 +285,19 @@ const TripTimerRecords = (() => {
       const {kind, requestedAt} = pendingChimes[0];
       // The chime remains audible if the bundled speech takes too long to decode.
       if (loadingVoices && now - requestedAt < 500 && kind !== 'arrival') return;
-      pendingChimes.shift();
+      const event = pendingChimes.shift();
+      if (event.saved) {
+        const outstanding = storedSounds(now);
+        const matches = item => item.at === event.at && item.kind === kind;
+        if (!outstanding.some(matches)) continue;
+        saveSounds(outstanding.filter(item => !matches(item)));
+      }
       const start = Math.max(chimeAudio.currentTime + 0.04, playbackEnd + 0.04);
       try {
         playbackEnd = playAnnouncement(kind, start);
         showSoundStatus('');
       } catch (_) {
-        showSoundStatus('운행음을 재생하지 못했어요 · 다시 눌러 주세요');
+        showSoundStatus('운행음 미재생 · 🔊 확인');
       }
     }
   }
@@ -278,7 +311,8 @@ const TripTimerRecords = (() => {
   function queueChime(kind, at = Date.now()) {
     const requestedAt = Date.now();
     if (requestedAt - at > chimeWindow) return;
-    pendingChimes.push({kind, at, requestedAt});
+    const saved = kind !== 'preview' && saveSounds([...storedSounds(requestedAt), {kind, at}]);
+    pendingChimes.push({kind, at, requestedAt, saved});
     resumeChimeAudio();
     flushChime();
   }
@@ -305,7 +339,7 @@ const TripTimerRecords = (() => {
       }
       flushChime();
     } catch (_) {
-      showSoundStatus('운행음을 재생하지 못했어요 · 다시 눌러 주세요');
+      showSoundStatus('운행음 미재생 · 🔊 확인');
     }
   }
 
@@ -429,6 +463,12 @@ const TripTimerRecords = (() => {
     showTime(departTime, next?.at ?? trip?.startedAt ?? null, now);
     showTime(arriveTime, trip?.arrivedAt ?? null, now);
     storageNote.hidden = persistent;
+    backgroundAlert.hidden = !(scheduled || running) || !/Android/i.test(navigator.userAgent || '');
+    if (!backgroundAlert.hidden) {
+      const href = 'intent://trip?at=' + trip.startedAt + '&bus=' + (trip.busNo || 0)
+        + '&left=' + Number(Boolean(trip.leftArea)) + '#Intent;scheme=alarm1560trip;package=kr.palcheonjo.trip1560;end';
+      if (backgroundAlert.getAttribute('href') !== href) backgroundAlert.setAttribute('href', href);
+    }
 
     let detail = message || trip?.arrivalPlace || '';
     if (trip?.autoArrival && !message) {
@@ -728,6 +768,12 @@ const TripTimerRecords = (() => {
       trip.autoArrival = true;
       save();
     }
+    const now = Date.now();
+    for (const event of storedSounds(now)) {
+      if (!pendingChimes.some(item => item.kind === event.kind && item.at === event.at)) {
+        pendingChimes.push({...event, saved:true, requestedAt:now});
+      }
+    }
     message = '';
     update();
   }
@@ -738,9 +784,13 @@ const TripTimerRecords = (() => {
     if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
   });
   window.addEventListener('storage', event => {
-    if (event.key === key || event.key === null) restore();
+    if (event.key === key || event.key === soundKey || event.key === null) restore();
   });
   window.addEventListener('focus', resumeChimeAudio);
+  document.addEventListener('resume', () => {
+    resumeChimeAudio();
+    restore();
+  });
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) update();
     else {

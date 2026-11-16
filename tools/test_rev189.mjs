@@ -21,7 +21,7 @@ function boot(storage, initial = base, blocked = false, holidays = [], AudioCont
   const slots = [];
   const probes = [];
   let rebuild;
-  const navigator = {geolocation:{
+  const navigator = {userAgent:'Android', geolocation:{
     watchPosition(success, error) { const id = ++nextWatch; watches.set(id, {success, error}); return id; },
     clearWatch(id) { watches.delete(id); },
     getCurrentPosition(success, error) { probes.push({success, error}); }
@@ -29,6 +29,7 @@ function boot(storage, initial = base, blocked = false, holidays = [], AudioCont
   const node = id => {
     if (!nodes.has(id)) nodes.set(id, {textContent:'', dataset:{}, attrs:{}, events:{},
       addEventListener(name, cb) { this.events[name] = cb; },
+      getAttribute(name) { return this.attrs[name] ?? null; },
       setAttribute(name, value) { this.attrs[name] = value; },
       removeAttribute(name) { delete this.attrs[name]; }});
     return nodes.get(id);
@@ -51,6 +52,7 @@ function boot(storage, initial = base, blocked = false, holidays = [], AudioCont
     },
     window:{AudioContext, addEventListener(name, cb) { windowEvents[name] = cb; }},
     localStorage:{getItem(k) { if (blocked) throw Error('blocked'); return storage[k] ?? null; },
+      removeItem(k) { if (blocked) throw Error('blocked'); delete storage[k]; },
       setItem(k, value) { if (blocked) throw Error('blocked'); storage[k] = value; }},
     setInterval(cb) { interval = cb; }});
   return {node, doc, windowEvents, documentEvents, watches, probes,
@@ -334,6 +336,7 @@ const reservedRow = completed.slot('9:20', 'weekday', 2);
 completed.reserve('9:20', 'weekday', 2);
 assert.equal(otherRow.attrs['aria-pressed'], 'false');
 assert.equal(reservedRow.attrs['aria-pressed'], 'true');
+assert.match(completed.node('tripBackgroundAlert').attrs.href, new RegExp('at=' + slot + '&bus=2&left=0#Intent;'));
 completed.at(slot + 120000);
 assert.equal(completed.node('tripNextCountdown').hidden, true);
 completed.click('tripArrive');
@@ -463,6 +466,20 @@ audioBlocked = false;
 blockedChime.click('tripSoundCheck');
 assert.deepEqual(spoken.map(voice => voice.path), [departureVoice], 'A new tap plays only the pending departure');
 assert.equal(blockedChime.node('tripSoundStatus').hidden, true);
+
+const returningStorage = {};
+const lostPage = boot(returningStorage, slot, false, [], InterruptedAudioContext);
+audioBlocked = true;
+lostPage.click('tripDepart');
+await settleAudio();
+const beforeRestore = spoken.length;
+assert.match(returningStorage[key + '-sound'], /"kind":"departure"/);
+const recoveredPage = boot(returningStorage, slot + 1000, false, [], TestAudioContext);
+recoveredPage.click('tripSoundCheck');
+await settleAudio();
+assert.equal(spoken.length, beforeRestore + 1, 'Recover an unheard departure after a reload');
+assert.equal(spoken.at(-1).path, departureVoice);
+assert.equal(returningStorage[key + '-sound'], undefined);
 
 spoken.length = 0;
 const restoredChime = boot({[key]:JSON.stringify({version:1, startedAt:slot, arrivedAt:null, autoArrival:true, leftArea:true})}, slot + 120000, false, [], TestAudioContext);
