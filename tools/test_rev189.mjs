@@ -13,7 +13,8 @@ assert.ok(html.indexOf('id="rev189-trip-timer"') > html.indexOf('<tbody id="rows
 assert.match(html, /class="trip-readout">\s*<p[^>]*>.*id="tripDepartTime".*<\/p>\s*<div[^>]*>\s*<span[^>]*>경과 시간<\/span>\s*<output id="tripElapsed"/);
 const key = 'bus1560-trip-timer-v1';
 const base = Date.parse('2026-11-10T14:59:50Z'); // 23:59:50 in Korea.
-function boot(storage, initial = base, blocked = false, holidays = [], AudioContext) {
+const recordings = JSON.parse(html.match(/<script id="tripVoiceAudio" type="application\/json">([^<]+)<\/script>/)[1]);
+function boot(storage, initial = base, blocked = false, holidays = [], AudioContext, timetableRows = [], selected = '') {
   const nodes = new Map(), windowEvents = {}, documentEvents = {};
   let now = initial, interval, nextWatch = 0;
   const watches = new Map();
@@ -33,15 +34,15 @@ function boot(storage, initial = base, blocked = false, holidays = [], AudioCont
     return nodes.get(id);
   };
   node('rows').querySelectorAll = () => slots;
+  node('tripVoiceAudio').textContent = JSON.stringify(recordings);
   class Clock extends Date { static now() { return now; } }
   const doc = {hidden:false, getElementById:node, querySelectorAll:()=>[],
     addEventListener(name, cb) { documentEvents[name] = cb; }};
   const dates = html.match(/<script id="rev141-korea-date">([\s\S]*?)<\/script>/)[1];
   vm.runInNewContext(dates + '\n' + core + '\n' + code, {Date:Clock, document:doc, navigator,
-    fetch: async path => ({
-      ok:true,
-      async arrayBuffer() { return path; }
-    }),
+    atob, DATA:Object.fromEntries(['weekday', 'saturday', 'sunday'].map(day => [day, {rows:timetableRows}])),
+    rev63SelectedBus: () => selected,
+    toMin: time => time.split(':').map(Number).reduce((hour, minute) => hour * 60 + minute),
     calendarInfo: date => ({holidays: holidays.includes(new Date(date.getTime()+32400000).toISOString().slice(0,10)) ? ['공휴일'] : []}),
     rev92DistanceMetres: (a,b) => Math.hypot((a.latitude-b.latitude)*111195,(a.longitude-b.longitude)*88400),
     MutationObserver: class {
@@ -53,15 +54,15 @@ function boot(storage, initial = base, blocked = false, holidays = [], AudioCont
       setItem(k, value) { if (blocked) throw Error('blocked'); storage[k] = value; }},
     setInterval(cb) { interval = cb; }});
   return {node, doc, windowEvents, documentEvents, watches, probes,
-    slot(time, day = 'weekday') {
-      const button = node(day + ' ' + time);
-      button.dataset = {tripTime:time, tripDay:day};
+    slot(time, day = 'weekday', busNo) {
+      const button = node(day + ' ' + time + ' ' + busNo);
+      button.dataset = {tripTime:time, tripDay:day, tripBus:busNo};
       slots.push(button);
       rebuild();
       return button;
     },
-    reserve(time, day = 'weekday') {
-      documentEvents.click({target:{closest:()=>({dataset:{tripTime:time, tripDay:day}})}});
+    reserve(time, day = 'weekday', busNo) {
+      documentEvents.click({target:{closest:()=>({dataset:{tripTime:time, tripDay:day, tripBus:busNo}})}});
     },
     fix(latitude, longitude, accuracy = 10, timestamp = now) {
       for (const watch of [...watches.values()]) watch.success({coords:{latitude,longitude,accuracy},timestamp});
@@ -325,14 +326,43 @@ colors.click('tripArrive');
 assert.equal(colors.node('tripTimer').dataset.state, 'arrived');
 assert.equal(selectedSlot.attrs['aria-pressed'], 'false');
 
+const rows = [{no:1, t:['9:20', '9:40']}, {no:2, t:['9:20', '10:30'], ext:'11:00'}];
+const completedStorage = {};
+const completed = boot(completedStorage, slot - 1000, false, [], undefined, rows, '1');
+const otherRow = completed.slot('9:20', 'weekday', 1);
+const reservedRow = completed.slot('9:20', 'weekday', 2);
+completed.reserve('9:20', 'weekday', 2);
+assert.equal(otherRow.attrs['aria-pressed'], 'false');
+assert.equal(reservedRow.attrs['aria-pressed'], 'true');
+completed.at(slot + 120000);
+assert.equal(completed.node('tripNextCountdown').hidden, true);
+completed.click('tripArrive');
+assert.equal(completed.node('tripNextCountdown').hidden, false);
+assert.equal(completed.node('tripElapsedLine').hidden, true);
+assert.equal(completed.node('tripDepartLabel').textContent, '2번 다음 출발');
+assert.equal(completed.node('tripDepartTime').textContent, '10:30:00');
+assert.equal(completed.node('tripNextRemaining').textContent, '01:08:00');
+assert.equal(completed.node('tripCompletedDuration').textContent, '00:02:00');
+const completedReloaded = boot(completedStorage, slot + 121000, false, [], undefined, rows, '1');
+assert.equal(completedReloaded.node('tripNextRemaining').textContent, '01:07:59');
+completedReloaded.at(slot + 70 * 60000);
+assert.equal(completedReloaded.node('tripDepartTime').textContent, '11:00:00');
+assert.equal(completedReloaded.node('tripTimer').dataset.state, 'arrived', 'A countdown display does not start an unreserved trip');
+completedReloaded.at(slot + 100 * 60000);
+assert.equal(completedReloaded.node('tripNextCountdown').hidden, true);
+assert.equal(completedReloaded.elapsed(), '00:02:00');
+
 const notes = [];
 const spoken = [];
 const departureVoice = './audio/trip/departure-ko.mp3';
 const gateVoice = './audio/trip/kyung-hee-gate-ko.mp3';
 const worker = readFileSync(root + '/sw.js', 'utf8');
-for (const path of [departureVoice, gateVoice]) {
+const voicePaths = new Map();
+for (const [kind, path] of [['departure', departureVoice], ['gate', gateVoice]]) {
   assert.ok(worker.includes(JSON.stringify(path)), 'Precache each voice in the service worker');
-  assert.ok(readFileSync(root + '/' + path).length > 0, 'Deploy each speech clip');
+  const file = readFileSync(root + '/' + path);
+  assert.deepEqual(Buffer.from(recordings[kind], 'base64'), file, 'Bundle each original speech clip without a runtime fetch');
+  voicePaths.set(file.length, path);
 }
 const settleAudio = () => new Promise(resolve => setImmediate(resolve));
 let audioResumes = 0;
@@ -341,7 +371,7 @@ class TestAudioContext {
   currentTime = 0;
   destination = {};
   async resume() { audioResumes++; this.state = 'running'; }
-  async decodeAudioData(path) { return {path, duration:1.4}; }
+  async decodeAudioData(bytes) { return {path:voicePaths.get(bytes.byteLength), duration:1.4}; }
   createBufferSource() {
     return {connect() {}, start(at) { spoken.push({path:this.buffer.path, at}); }};
   }
@@ -365,11 +395,12 @@ secondTab.click('tripSoundCheck');
 await settleAudio();
 assert.deepEqual(spoken.map(voice => voice.path), [departureVoice, gateVoice]);
 assert.ok(spoken[1].at >= spoken[0].at + 1.4, 'The two preview sentences play in order');
-assert.equal(notes.length, 0, 'The preview uses the voice recordings');
+assert.equal(notes.length, 11, 'The preview plays the departure tone and all three arrival chimes');
 assert.equal(chimeStorage[key], undefined);
 secondTab.click('tripSoundCheck');
 assert.equal(spoken.length, 2, 'Repeated preview taps do not layer announcements');
 spoken.length = 0;
+notes.length = 0;
 chime.reserve('9:20');
 await settleAudio();
 assert.equal(audioResumes, 2, 'The reservation tap enables audio for the later GPS callback');
@@ -381,12 +412,14 @@ chime.fix(37.254, 127.081);
 assert.deepEqual(spoken.map(voice => voice.path), [departureVoice], 'Speak once at the scheduled departure');
 chime.at(slot + 120000);
 chime.fix(37.2476648, 127.0791747);
-assert.equal(notes.length, 9, 'The intersection still plays three chimes');
+assert.equal(notes.length, 11, 'The intersection plays three chimes after the departure tone');
 assert.equal(spoken.length, 1, 'Wait for the gate before speaking the arrival announcement');
+const firstArrival = notes[2].at;
+assert.ok(firstArrival > spoken[0].at + 1.4, 'Arrival does not interrupt a departure clip already queued');
 for (const repeat of [0, 1, 2]) {
-  const group = notes.slice(repeat * 3, 3 + repeat * 3);
+  const group = notes.slice(2 + repeat * 3, 5 + repeat * 3);
   assert.deepEqual(group.map(note => note.frequency), [1318.51, 1046.50, 783.99]);
-  assert.deepEqual(group.map(note => Math.round(note.at * 100)), [4, 31, 58].map(at => at + repeat * 145));
+  assert.deepEqual(group.map(note => Math.round((note.at - firstArrival) * 100)), [0, 27, 54].map(at => at + repeat * 145));
 }
 const recordedAt = JSON.parse(chimeStorage[key]).arrivedAt;
 chime.at(slot + 130000);
@@ -399,7 +432,7 @@ chime.fix(37.247333, 127.078440);
 chime.click('tripArrive');
 chime.windowEvents.pageshow();
 secondTab.windowEvents.storage({key});
-assert.equal(notes.length, 9, 'Repeated taps and restoring arrival do not replay the chime');
+assert.equal(notes.length, 11, 'Repeated taps and restoring arrival do not replay the chime');
 assert.equal(spoken.length, 2, 'Repeated GPS fixes and restores do not replay the gate voice');
 const manualChime = boot({}, slot, false, [], TestAudioContext);
 manualChime.click('tripDepart');
@@ -410,7 +443,7 @@ manualChime.reserve('9:19');
 assert.equal(spoken.length, 3, 'Correcting a past departure does not replay the departure voice');
 manualChime.at(slot + 1000);
 manualChime.click('tripArrive');
-assert.equal(notes.length, 18, 'Manual arrival plays the same chime');
+assert.equal(notes.length, 22, 'Manual departure and arrival play the same tones');
 
 notes.length = 0;
 spoken.length = 0;
@@ -433,12 +466,41 @@ assert.equal(blockedChime.node('tripSoundStatus').hidden, true);
 
 spoken.length = 0;
 const restoredChime = boot({[key]:JSON.stringify({version:1, startedAt:slot, arrivedAt:null, autoArrival:true, leftArea:true})}, slot + 120000, false, [], TestAudioContext);
+notes.length = 0;
 restoredChime.fix(37.247333, 127.078440);
 assert.equal(restoredChime.node('tripTimer').dataset.state, 'arrived');
 assert.match(restoredChime.node('tripSoundStatus').textContent, /운행음 대기 중/);
 restoredChime.click('tripSoundCheck');
 await settleAudio();
 assert.deepEqual(spoken.map(voice => voice.path), [gateVoice], 'A tap recovers the direct GPS gate announcement after a reload');
+assert.equal(notes.length, 9, 'Direct GPS gate arrival plays the three tones before the voice');
+
+notes.length = 0;
+spoken.length = 0;
+class DamagedDepartureRecording extends TestAudioContext {
+  async decodeAudioData(bytes) {
+    if (voicePaths.get(bytes.byteLength) === departureVoice) throw Error('Unsupported recording');
+    return super.decodeAudioData(bytes);
+  }
+}
+const soundFallback = boot({}, slot, false, [], DamagedDepartureRecording);
+soundFallback.click('tripDepart');
+await settleAudio();
+assert.equal(notes.length, 2, 'A failed voice decode still plays the departure tone');
+soundFallback.at(slot + 10000);
+soundFallback.fix(37.254, 127.081);
+soundFallback.at(slot + 30000);
+soundFallback.fix(37.247333, 127.078440);
+assert.equal(notes.length, 11);
+assert.deepEqual(spoken.map(voice => voice.path), [gateVoice], 'An error in one clip does not silence the other');
+
+spoken.length = 0;
+const backgroundDeparture = boot({}, slot - 1000, false, [], TestAudioContext);
+backgroundDeparture.reserve('9:20');
+await settleAudio();
+backgroundDeparture.doc.hidden = true;
+backgroundDeparture.at(slot);
+assert.deepEqual(spoken.map(voice => voice.path), [departureVoice], 'An unlocked context can announce a departure while hidden and still running');
 
 spoken.length = 0;
 const missedDepartureStorage = {};
@@ -452,7 +514,7 @@ assert.equal(missedDeparture.node('tripTimer').dataset.state, 'running');
 await settleAudio();
 assert.equal(spoken.length, 0, 'Do not replay a stale departure on return to the page');
 
-console.log('Trip timer: Korean speech for departure and main gate, and three chimes for manual or intersection arrival');
+console.log('Trip timer: next departure countdown on the same row, bundled Korean speech, and three chimes for every arrival');
 console.log('Trip timer: one-tap correction while running, persistent selection, replacement reservation, GPS and recording');
 console.log('Rev195: manual and restored trips use GPS, stationary GPS fallback, and moderate location error passed');
 console.log('Rev195: time selection, scheduled start, holiday rollover, GPS departure and return, both destinations, permission retry, and manual arrival passed');

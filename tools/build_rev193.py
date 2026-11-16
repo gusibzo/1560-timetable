@@ -24,21 +24,22 @@ html = html.replace('</body>', controller.group() + '\n</body>', 1)
 old_slot = '''    if(next!==Infinity&&toMin(x)===next){td.classList.add("next");td.innerHTML=`<span class="time">${x}</span>`}
     else td.textContent=x;'''
 new_slot = '''    if(next!==Infinity&&toMin(x)===next)td.classList.add("next");
-    td.appendChild(departureSlot(x, state.day, `${r.no}번 ${ci+1}회`, true));'''
+    td.appendChild(departureSlot(x, state.day, `${r.no}번 ${ci+1}회`, true, r.no));'''
 old_extension = '''    const e=document.createElement("span");e.className="ext";e.innerHTML=`+강남역 <b>${r.ext}</b>`;td.appendChild(e)'''
 new_extension = '''    const e=document.createElement("span");e.className="ext";e.textContent="+강남역 ";
-    e.appendChild(departureSlot(r.ext, state.day, `${r.no}번 강남역`, false));td.appendChild(e);'''
+    e.appendChild(departureSlot(r.ext, state.day, `${r.no}번 강남역`, false, r.no));td.appendChild(e);'''
 for original, updated in ((old_slot, new_slot), (old_extension, new_extension)):
     if html.count(original) != 1:
         raise RuntimeError('Expected one timetable time renderer')
     html = html.replace(original, updated)
-slot_factory = '''function departureSlot(time, day, service, main) {
+slot_factory = '''function departureSlot(time, day, service, main, busNo) {
  const button=document.createElement("button");
  button.type="button";
  button.className=main?"time trip-slot":"trip-slot trip-slot-extra";
  button.textContent=time;
  button.dataset.tripTime=time;
  button.dataset.tripDay=day;
+ button.dataset.tripBus=String(busNo);
  button.setAttribute("aria-label",`${service} ${time} 출발 시각`);
  button.setAttribute("aria-pressed","false");
  return button;

@@ -12,8 +12,10 @@
 #tripTimer .trip-departure-clock{margin:3px 0 1px;font-weight:800}
 #tripDepartTime{display:inline-block;white-space:nowrap;color:#fff;font-variant-numeric:tabular-nums}
 #tripTimer .trip-elapsed-line{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:center;column-gap:4px}
-#tripElapsedLabel{white-space:nowrap;font-size:11px}
-#tripElapsed{white-space:nowrap;font-size:clamp(22px,6.4vw,34px);font-weight:950;line-height:1.15;font-variant-numeric:tabular-nums;letter-spacing:-.6px;color:#fff}
+#tripElapsedLabel,#tripNextLabel{white-space:nowrap;font-size:11px}
+#tripElapsed,#tripNextRemaining{white-space:nowrap;font-size:clamp(22px,6.4vw,30px);font-weight:950;line-height:1.15;font-variant-numeric:tabular-nums;letter-spacing:-.6px;color:#fff}
+#tripNextCountdown[hidden],#tripElapsedLine[hidden]{display:none}
+#tripNextRemaining{color:#82caff}
 #tripTimer[data-state="running"] #tripElapsed,
 #tripTimer[data-state="arrived"] #tripElapsed{color:#ffdf58}
 #tripTimer .trip-times{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;font-size:12px;line-height:1.3;color:#c7dbed;font-variant-numeric:tabular-nums}
@@ -21,9 +23,10 @@
 #tripTimer .trip-times>span:last-child{grid-column:2;text-align:right}
 #tripTimer .trip-times time{color:#fff;font-weight:800}
 #tripRemaining{color:#82caff;font-weight:800}
-#tripTimer .trip-audio{display:flex;align-items:center;gap:8px;margin-top:6px}
+#tripTimer .trip-audio{grid-column:1/-1;display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;margin-top:6px}
 #tripTimer #tripSoundCheck{flex:none;min-height:44px;padding:6px 10px;border:1px solid #aac3d9;background:transparent;color:#fff;font-size:14px}
 #tripSoundStatus{margin:0;color:#ffdf58;font-size:12px}
+#tripLocation{grid-column:1/-1}
 #tripStorageNote{margin-top:6px;font-size:11px;color:#ffdf58}
 @media(max-width:360px){#tripTimer{padding:9px 8px}#tripTimer .trip-controls{gap:6px}#tripTimer button{font-size:17px}#tripTimer .trip-times{font-size:11px}}
 </style>
@@ -33,15 +36,20 @@
     <button id="tripDepart" type="button">출발</button>
     <div class="trip-readout">
       <p class="trip-departure-clock"><span id="tripDepartLabel">출발 시각</span> <time id="tripDepartTime">--:--:--</time></p>
-      <div class="trip-elapsed-line">
+      <div id="tripElapsedLine" class="trip-elapsed-line">
         <span id="tripElapsedLabel">경과 시간</span>
         <output id="tripElapsed" role="timer" aria-labelledby="tripElapsedLabel" aria-live="off">00:00:00</output>
+      </div>
+      <div id="tripNextCountdown" class="trip-elapsed-line" hidden>
+        <span id="tripNextLabel">남은 시간</span>
+        <output id="tripNextRemaining" role="timer" aria-labelledby="tripNextLabel" aria-live="off">00:00:00</output>
       </div>
     </div>
     <button id="tripArrive" type="button" disabled>도착</button>
   </div>
   <div class="trip-times">
     <span id="tripCountdown" hidden>출발까지 <output id="tripRemaining" role="timer" aria-label="출발까지 남은 시간" aria-live="off">00:00:00</output></span>
+    <span id="tripCompletedElapsed" hidden>운행 <output id="tripCompletedDuration">00:00:00</output></span>
     <span>도착 <time id="tripArriveTime">--:--:--</time></span>
   </div>
   <div class="trip-audio">
@@ -87,6 +95,7 @@ const TripTimerRecords = (() => {
       else if (trip.leftArea === true) saved.leftArea = true;
     }
     if (trip.reservedDeparture === true || saved.scheduled) saved.reservedDeparture = true;
+    if (Number.isSafeInteger(trip.busNo) && trip.busNo > 0) saved.busNo = trip.busNo;
     if (trip.arrivedAt !== null && typeof trip.arrivalPlace === 'string') saved.arrivalPlace = trip.arrivalPlace;
     if (trip.arrivedAt !== null && trip.gateAnnouncementPending === true) saved.gateAnnouncementPending = true;
     return saved;
@@ -109,6 +118,11 @@ const TripTimerRecords = (() => {
   const depart = document.getElementById('tripDepart');
   const arrive = document.getElementById('tripArrive');
   const elapsed = document.getElementById('tripElapsed');
+  const elapsedLine = document.getElementById('tripElapsedLine');
+  const completedElapsed = document.getElementById('tripCompletedElapsed');
+  const completedDuration = document.getElementById('tripCompletedDuration');
+  const nextCountdown = document.getElementById('tripNextCountdown');
+  const nextRemaining = document.getElementById('tripNextRemaining');
   const status = document.getElementById('tripStatus');
   const departLabel = document.getElementById('tripDepartLabel');
   const departTime = document.getElementById('tripDepartTime');
@@ -149,19 +163,16 @@ const TripTimerRecords = (() => {
   let shownDeparture = null;
   let shownDay = null;
   let shownTime = null;
+  let shownBus = null;
   let message = '';
   const AudioContext = window.AudioContext || window.webkitAudioContext;
+  const departureNotes = [[1046.50, 0.28], [783.99, 0.42]];
   const arrivalNotes = [[1318.51, 0.32], [1046.50, 0.32], [783.99, 0.56]];
-  const voiceFiles = {
-    departure: './audio/trip/departure-ko.mp3',
-    gate: './audio/trip/kyung-hee-gate-ko.mp3'
-  };
   const chimeWindow = 60000;
   let chimeAudio = null;
-  let pendingChime = null;
-  let voices = null;
+  const pendingChimes = [];
+  const voices = {};
   let loadingVoices = false;
-  let playbackGain = null;
   let playbackEnd = 0;
 
   function showSoundStatus(text) {
@@ -169,7 +180,8 @@ const TripTimerRecords = (() => {
     soundStatus.hidden = !text;
   }
 
-  function playNotes(notes, start, destination) {
+  function playNotes(notes, start) {
+    let end = start;
     for (const [index, [frequency, duration]] of notes.entries()) {
       const at = start + index * 0.27;
       const oscillator = chimeAudio.createOscillator();
@@ -180,89 +192,108 @@ const TripTimerRecords = (() => {
       gain.gain.exponentialRampToValueAtTime(0.4, at + 0.015);
       gain.gain.exponentialRampToValueAtTime(0.001, at + duration);
       oscillator.connect(gain);
-      gain.connect(destination);
+      gain.connect(chimeAudio.destination);
       oscillator.start(at);
       oscillator.stop(at + duration);
+      end = Math.max(end, at + duration);
     }
+    return end;
   }
 
-  function loadVoices() {
-    if (voices || loadingVoices) return;
+  function loadVoices(context) {
     loadingVoices = true;
-    Promise.all(Object.entries(voiceFiles).map(async ([kind, path]) => {
-      const response = await fetch(path);
-      if (!response.ok) throw new Error('Could not load trip announcement');
-      return [kind, await chimeAudio.decodeAudioData(await response.arrayBuffer())];
-    })).then(entries => {
-      voices = Object.fromEntries(entries);
-    }, () => {}).finally(() => {
+    const recordings = JSON.parse(document.getElementById('tripVoiceAudio').textContent);
+    Promise.allSettled(Object.entries(recordings).map(async ([kind, encoded]) => {
+      const bytes = Uint8Array.from(atob(encoded), character => character.charCodeAt(0));
+      const buffer = await context.decodeAudioData(bytes.buffer);
+      if (context === chimeAudio) voices[kind] = buffer;
+    })).then(() => {
+      if (context !== chimeAudio) return;
       loadingVoices = false;
       flushChime();
     });
   }
 
-  function playVoice(kind, start, destination) {
+  function playVoice(kind, start) {
+    const buffer = voices[kind];
+    if (!buffer) return start;
     const source = chimeAudio.createBufferSource();
-    source.buffer = voices[kind];
-    source.connect(destination);
+    const gain = chimeAudio.createGain();
+    gain.gain.value = 1.2;
+    source.buffer = buffer;
+    source.connect(gain);
+    gain.connect(chimeAudio.destination);
     source.start(start);
-    return start + source.buffer.duration;
+    return start + buffer.duration;
+  }
+
+  function playArrival(start) {
+    let end = start;
+    for (let repeat = 0; repeat < 3; repeat++) end = playNotes(arrivalNotes, start + repeat * 1.45);
+    return end;
+  }
+
+  function playAnnouncement(kind, start) {
+    if (kind === 'arrival') return playArrival(start);
+    if (kind === 'gate-voice') return playVoice('gate', start);
+    if (kind === 'gate') return playVoice('gate', playArrival(start) + 0.15);
+    const departureEnd = playVoice('departure', playNotes(departureNotes, start) + 0.1);
+    return kind === 'preview' ? playAnnouncement('gate', departureEnd + 0.4) : departureEnd;
   }
 
   function flushChime() {
-    if (!pendingChime) return;
-    const {kind, at} = pendingChime;
-    if (Date.now() - at > chimeWindow) {
-      pendingChime = null;
+    if (!pendingChimes.length) return;
+    const now = Date.now();
+    while (pendingChimes.length && now - pendingChimes[0].at > chimeWindow) pendingChimes.shift();
+    if (!pendingChimes.length) {
       showSoundStatus('운행음이 재생되지 않았어요 · 소리 확인을 눌러 주세요');
       return;
     }
-    if (document.hidden || chimeAudio?.state !== 'running') {
+    if (chimeAudio?.state !== 'running') {
       showSoundStatus(AudioContext ? '운행음 대기 중 · 소리 확인을 눌러 주세요' : '이 브라우저에서 운행음을 재생할 수 없어요');
       return;
     }
-    if (kind !== 'arrival' && !voices) {
-      showSoundStatus(loadingVoices ? '안내 음성을 불러오는 중이에요' : '안내 음성을 불러오지 못했어요 · 다시 눌러 주세요');
-      return;
-    }
 
-    pendingChime = null;
-    const start = chimeAudio.currentTime + 0.04;
-    try {
-      playbackGain?.disconnect();
-      playbackGain = chimeAudio.createGain();
-      playbackGain.connect(chimeAudio.destination);
-      if (kind === 'arrival') {
-        for (let repeat = 0; repeat < 3; repeat++) playNotes(arrivalNotes, start + repeat * 1.45, playbackGain);
-        playbackEnd = start + 4;
-      } else if (kind === 'preview') {
-        const arrivalAt = playVoice('departure', start, playbackGain) + 0.4;
-        playbackEnd = playVoice('gate', arrivalAt, playbackGain);
-      } else {
-        playbackEnd = playVoice(kind, start, playbackGain);
+    while (pendingChimes.length) {
+      const {kind, requestedAt} = pendingChimes[0];
+      // The chime remains audible if the bundled speech takes too long to decode.
+      if (loadingVoices && now - requestedAt < 500 && kind !== 'arrival') return;
+      pendingChimes.shift();
+      const start = Math.max(chimeAudio.currentTime + 0.04, playbackEnd + 0.04);
+      try {
+        playbackEnd = playAnnouncement(kind, start);
+        showSoundStatus('');
+      } catch (_) {
+        showSoundStatus('운행음을 재생하지 못했어요 · 다시 눌러 주세요');
       }
-      showSoundStatus('');
-    } catch (_) {
-      showSoundStatus('운행음을 재생하지 못했어요 · 다시 눌러 주세요');
+    }
+  }
+
+  function resumeChimeAudio() {
+    if (chimeAudio && chimeAudio.state !== 'running' && chimeAudio.state !== 'closed') {
+      chimeAudio.resume().then(flushChime, () => {});
     }
   }
 
   function queueChime(kind, at = Date.now()) {
-    if (Date.now() - at > chimeWindow) return;
-    pendingChime = {kind, at};
+    const requestedAt = Date.now();
+    if (requestedAt - at > chimeWindow) return;
+    pendingChimes.push({kind, at, requestedAt});
+    resumeChimeAudio();
     flushChime();
   }
 
   function enableChimeAudio() {
     if (!AudioContext) return;
     try {
-      if (!chimeAudio) {
+      if (!chimeAudio || chimeAudio.state === 'closed') {
         chimeAudio = new AudioContext();
+        playbackEnd = 0;
+        loadVoices(chimeAudio);
         chimeAudio.addEventListener?.('statechange', flushChime);
       }
-      loadVoices();
       if (chimeAudio.state !== 'running') {
-        chimeAudio.resume().then(flushChime, () => {});
+        resumeChimeAudio();
         // Start a silent oscillator in the same tap to unlock browsers that require it.
         const oscillator = chimeAudio.createOscillator();
         const mute = chimeAudio.createGain();
@@ -332,6 +363,28 @@ const TripTimerRecords = (() => {
     return null;
   }
 
+  function nextTripDeparture(now) {
+    if (trip?.arrivedAt == null || stamp(now) !== stamp(trip.arrivedAt)) return null;
+    const rowData = DATA[timetableDay(new TimetableDate(now))].rows;
+    let busNo = trip.busNo;
+    if (!busNo && trip.reservedDeparture && stamp(now) === stamp(trip.startedAt)) {
+      const started = new TimetableDate(trip.startedAt);
+      const selectedMinute = started.getHours() * 60 + started.getMinutes();
+      const matches = rowData.filter(row => [...row.t, row.ext].some(time => time && toMin(time) === selectedMinute));
+      if (matches.length === 1) busNo = matches[0].no;
+    }
+    if (!busNo) busNo = Number(rev63SelectedBus());
+    const row = rowData.find(entry => entry.no === busNo);
+    if (!row) return null;
+    const times = [...row.t, row.ext].filter(Boolean).map(time => departureDate(time, now).getTime());
+    const at = Math.min(...times.filter(time => time > now && time > trip.arrivedAt));
+    return Number.isFinite(at) ? {at, busNo} : null;
+  }
+
+  function remainingTime(at, now) {
+    return duration(Math.ceil(Math.max(0, at - now) / 1000) * 1000);
+  }
+
   function isRunning() {
     return trip !== null && trip.arrivedAt === null && !trip.scheduled;
   }
@@ -356,16 +409,24 @@ const TripTimerRecords = (() => {
     const running = isRunning();
     const elapsedTime = trip && !scheduled ? (running ? now : trip.arrivedAt) - trip.startedAt : 0;
     elapsed.textContent = duration(elapsedTime);
+    const next = nextTripDeparture(now);
+    nextCountdown.hidden = !next;
+    elapsedLine.hidden = Boolean(next);
+    completedElapsed.hidden = !next;
+    if (next) {
+      nextRemaining.textContent = remainingTime(next.at, now);
+      completedDuration.textContent = elapsed.textContent;
+    }
     countdown.hidden = !scheduled;
-    if (scheduled) remaining.textContent = duration(Math.ceil(Math.max(0, trip.startedAt - now) / 1000) * 1000);
+    if (scheduled) remaining.textContent = remainingTime(trip.startedAt, now);
     panel.dataset.state = scheduled ? 'scheduled' : running ? 'running' : trip ? 'arrived' : 'idle';
     const label = scheduled ? '출발 예약' : running ? '운행 중' : trip ? '운행 완료' : '출발 대기';
     if (status.textContent !== label) status.textContent = label;
     depart.disabled = running;
     depart.textContent = scheduled ? '예약 취소' : trip && !running ? '새 출발' : '출발';
     arrive.disabled = !running;
-    departLabel.textContent = trip?.reservedDeparture ? '예약 출발' : '출발 시각';
-    showTime(departTime, trip?.startedAt ?? null, now);
+    departLabel.textContent = next ? next.busNo + '번 다음 출발' : trip?.reservedDeparture ? '예약 출발' : '출발 시각';
+    showTime(departTime, next?.at ?? trip?.startedAt ?? null, now);
     showTime(arriveTime, trip?.arrivedAt ?? null, now);
     storageNote.hidden = persistent;
 
@@ -385,8 +446,10 @@ const TripTimerRecords = (() => {
       (gpsState === 'ready' && now - lastFix <= 25000);
 
     const selected = scheduled || running ? trip.startedAt : null;
-    if (selected !== shownDeparture) {
+    const busNo = selected !== null ? trip.busNo ?? null : null;
+    if (selected !== shownDeparture || busNo !== shownBus) {
       shownDeparture = selected;
+      shownBus = busNo;
       if (selected !== null) {
         const date = new TimetableDate(selected);
         shownDay = timetableDay(date);
@@ -401,7 +464,8 @@ const TripTimerRecords = (() => {
       const [hour, minute] = button.dataset.tripTime.split(':').map(Number);
       const minutes = hour * 60 + minute;
       const day = button.dataset.tripDay;
-      const active = shownDeparture !== null && day === shownDay && minutes === shownTime;
+      const active = shownDeparture !== null && day === shownDay && minutes === shownTime
+        && (shownBus === null || Number(button.dataset.tripBus) === shownBus);
       button.setAttribute('aria-pressed', String(active));
     }
   }
@@ -438,7 +502,7 @@ const TripTimerRecords = (() => {
     if (!waitingForGate(now) || trip.startedAt !== startedAt || at <= trip.arrivedAt) return;
     delete trip.gateAnnouncementPending;
     save();
-    queueChime('gate', at);
+    queueChime('gate-voice', at);
   }
 
   function onPosition(position) {
@@ -535,11 +599,15 @@ const TripTimerRecords = (() => {
     render();
   }
 
-  function syncScreen(now) {
+  function needsScreen(now) {
     const nearDeparture = trip?.scheduled && trip.startedAt - now <= 120000;
-    const needed = ((trip?.autoArrival && (isRunning() || nearDeparture)) || waitingForGate(now)) && !document.hidden
-      && gpsState !== 'denied' && gpsState !== 'unsupported';
-    if (!needed) {
+    const gpsActive = gpsState !== 'denied' && gpsState !== 'unsupported'
+      && ((trip?.autoArrival && isRunning()) || waitingForGate(now));
+    return (nearDeparture || gpsActive) && !document.hidden;
+  }
+
+  function syncScreen(now) {
+    if (!needsScreen(now)) {
       wakeRequested = false;
       if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
       return;
@@ -548,13 +616,17 @@ const TripTimerRecords = (() => {
     wakeRequested = true;
     const startedAt = trip.startedAt;
     navigator.wakeLock.request('screen').then(lock => {
-      if (trip?.startedAt !== startedAt || (!trip.autoArrival && !waitingForGate(Date.now())) || document.hidden
-          || gpsState === 'denied' || gpsState === 'unsupported') {
+      if (trip?.startedAt !== startedAt || !needsScreen(Date.now())) {
         lock.release().catch(() => {});
         return;
       }
       wakeLock = lock;
-      lock.addEventListener('release', () => { if (wakeLock === lock) wakeLock = null; });
+      lock.addEventListener('release', () => {
+        if (wakeLock === lock) {
+          wakeLock = null;
+          wakeRequested = false;
+        }
+      });
     }).catch(() => {});
   }
 
@@ -571,7 +643,7 @@ const TripTimerRecords = (() => {
     if (persistent) trip = read();
     const now = Date.now();
     advance(now);
-    const {tripTime, tripDay} = button.dataset;
+    const {tripTime, tripDay, tripBus} = button.dataset;
     const date = departureDate(tripTime, now);
     const selected = date.getTime();
     if (isRunning() && selected <= now && timetableDay(date) === tripDay) {
@@ -583,6 +655,7 @@ const TripTimerRecords = (() => {
       if (startedAt === null) return;
       trip = {version:1, startedAt, arrivedAt:null, autoArrival:true, scheduled:true, history:history(trip)};
     }
+    if (tripBus) trip.busNo = Number(tripBus);
     trip.reservedDeparture = true;
     enableChimeAudio();
     if (gpsState === 'denied') gpsState = 'waiting';
@@ -601,6 +674,8 @@ const TripTimerRecords = (() => {
       trip = records.length ? {version:1, ...records[0], history:records} : null;
     } else {
       trip = {version:1, startedAt:Date.now(), arrivedAt:null, autoArrival:true, history:records};
+      const busNo = Number(rev63SelectedBus());
+      if (busNo > 0) trip.busNo = busNo;
       if (gpsState === 'denied') gpsState = 'waiting';
     }
     message = '';
@@ -616,7 +691,7 @@ const TripTimerRecords = (() => {
   });
   soundCheck.addEventListener('click', () => {
     flushChime();
-    if (pendingChime) {
+    if (pendingChimes.length) {
       enableChimeAudio();
       return;
     }
@@ -635,7 +710,7 @@ const TripTimerRecords = (() => {
     const button = event.target.closest('#rows button[data-trip-time]');
     if (button) selectDeparture(button);
     // A restored or interrupted trip can unlock audio on the next tap.
-    else if ((trip?.autoArrival || waitingForGate(Date.now()) || pendingChime) && chimeAudio?.state !== 'running'
+    else if ((trip?.autoArrival || waitingForGate(Date.now()) || pendingChimes.length) && chimeAudio?.state !== 'running'
         && ![depart, arrive, soundCheck].includes(event.target)) enableChimeAudio();
   });
   // Refresh new buttons after the timetable is rebuilt or a different day is selected.
@@ -665,8 +740,21 @@ const TripTimerRecords = (() => {
   window.addEventListener('storage', event => {
     if (event.key === key || event.key === null) restore();
   });
-  document.addEventListener('visibilitychange', () => { if (document.hidden) update(); else restore(); });
-  setInterval(() => { if (!document.hidden) update(); }, 1000);
+  window.addEventListener('focus', resumeChimeAudio);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) update();
+    else {
+      resumeChimeAudio();
+      restore();
+    }
+  });
+  setInterval(() => {
+    if (!document.hidden) update();
+    else if (chimeAudio?.state === 'running') {
+      advance(Date.now());
+      flushChime();
+    }
+  }, 1000);
   restore();
 })();
 </script>
