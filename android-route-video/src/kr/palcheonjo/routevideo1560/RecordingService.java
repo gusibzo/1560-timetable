@@ -57,16 +57,18 @@ public final class RecordingService extends Service {
     if (receiver != null) return START_NOT_STICKY;
 
     receiver = intent.getParcelableExtra("receiver");
+    String route = "1560A".equals(intent.getStringExtra("route")) ? "1560A" : "1560B";
     try {
-      startForeground(1560, notification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION);
+      startForeground(1560, notification(route), ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION);
       MediaProjectionManager manager = getSystemService(MediaProjectionManager.class);
       Intent grant = intent.getParcelableExtra("grant");
       projection = manager.getMediaProjection(intent.getIntExtra("resultCode", 0), grant);
       if (projection == null) throw new IOException("No projection grant");
       projection.registerCallback(projectionCallback, handler);
-      prepareRecorder(intent.getIntExtra("width", 720), intent.getIntExtra("height", 1560));
-      display = projection.createVirtualDisplay("1560B", intent.getIntExtra("width", 720),
-          intent.getIntExtra("height", 1560), getResources().getDisplayMetrics().densityDpi,
+      int width = intent.getIntExtra("width", 720);
+      int height = intent.getIntExtra("height", 1560);
+      prepareRecorder(route, width, height);
+      display = projection.createVirtualDisplay(route, width, height, getResources().getDisplayMetrics().densityDpi,
           DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, recorder.getSurface(), null, handler);
       if (display == null) throw new IOException("No virtual display");
       recorder.start();
@@ -79,25 +81,25 @@ public final class RecordingService extends Service {
     return START_NOT_STICKY;
   }
 
-  private Notification notification() {
+  private Notification notification(String route) {
     NotificationManager manager = getSystemService(NotificationManager.class);
     manager.createNotificationChannel(new NotificationChannel(
-        CHANNEL, "1560B 노선 녹화", NotificationManager.IMPORTANCE_LOW));
+        CHANNEL, "1560 A·B 노선 녹화", NotificationManager.IMPORTANCE_LOW));
     PendingIntent stop = PendingIntent.getService(this, 0,
         new Intent(this, RecordingService.class).setAction("stop"),
         PendingIntent.FLAG_IMMUTABLE);
     return new Notification.Builder(this, CHANNEL)
         .setSmallIcon(android.R.drawable.presence_video_online)
-        .setContentTitle("1560B 노선 화면 녹화 중")
+        .setContentTitle(route + " 노선 화면 녹화 중")
         .setOngoing(true)
         .addAction(new Notification.Action.Builder(null, "녹화 끝내기", stop).build())
         .build();
   }
 
-  private void prepareRecorder(int width, int height) throws IOException {
+  private void prepareRecorder(String route, int width, int height) throws IOException {
     String time = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.ROOT).format(new Date());
     ContentValues values = new ContentValues();
-    values.put(MediaStore.Video.Media.DISPLAY_NAME, "1560B_" + time + ".mp4");
+    values.put(MediaStore.Video.Media.DISPLAY_NAME, route + "_" + time + ".mp4");
     values.put(MediaStore.Video.Media.MIME_TYPE, "video/mp4");
     values.put(MediaStore.Video.Media.RELATIVE_PATH, Environment.DIRECTORY_MOVIES + "/1560");
     values.put(MediaStore.Video.Media.IS_PENDING, 1);

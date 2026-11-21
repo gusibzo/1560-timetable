@@ -1,13 +1,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="kr.palcheonjo.routevideo1560" android:versionCode="1" android:versionName="1.0">
+    package="kr.palcheonjo.routevideo1560.ab" android:versionCode="2" android:versionName="1.1">
   <uses-sdk android:minSdkVersion="29" android:targetSdkVersion="35"/>
   <uses-permission android:name="android.permission.INTERNET"/>
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION"/>
-  <application android:label="1560B 노선 녹화" android:allowBackup="false"
-      android:icon="@android:drawable/presence_video_online"
+  <application android:label="1560 A·B 노선 녹화" android:allowBackup="false"
+      android:icon="@drawable/route_video_icon"
       android:usesCleartextTraffic="false" android:theme="@android:style/Theme.Material.Light.NoActionBar">
-    <activity android:name=".RouteVideoActivity" android:exported="true"
+    <activity android:name="kr.palcheonjo.routevideo1560.RouteVideoActivity" android:exported="true"
         android:launchMode="singleTop" android:screenOrientation="portrait">
       <intent-filter>
         <action android:name="android.intent.action.MAIN"/>
@@ -17,10 +17,10 @@
         <action android:name="android.intent.action.VIEW"/>
         <category android:name="android.intent.category.DEFAULT"/>
         <category android:name="android.intent.category.BROWSABLE"/>
-        <data android:scheme="routevideo1560" android:host="record"/>
+        <data android:scheme="routevideo1560ab" android:host="record"/>
       </intent-filter>
     </activity>
-    <service android:name=".RecordingService" android:exported="false"
+    <service android:name="kr.palcheonjo.routevideo1560.RecordingService" android:exported="false"
         android:foregroundServiceType="mediaProjection"/>
   </application>
 </manifest>

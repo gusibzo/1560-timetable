@@ -3,8 +3,10 @@ package kr.palcheonjo.routevideo1560;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Rect;
+import android.graphics.Typeface;
 import android.media.projection.MediaProjectionManager;
 import android.net.Uri;
 import android.os.Build;
@@ -30,17 +32,39 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.EnumMap;
+import java.util.Locale;
 
 public final class RouteVideoActivity extends Activity {
-  // Official 경기버스정보 link for route 228000433 (1560B).
-  private static final String ROUTE = "https://m.gbis.go.kr/routeBusLocation/5NDYzMjMyMjgwMDA0MzM2MDUzNg5";
+  private enum Route {
+    A("2NzYyMzQwMDA4ODQ0NDkw4"),
+    B("5NDYzMjMyMjgwMDA0MzM2MDUzNg5");
+
+    final String number = "1560" + name();
+    final String url;
+
+    Route(String path) {
+      url = "https://m.gbis.go.kr/routeBusLocation/" + path;
+    }
+  }
+
   private static final int CAPTURE_REQUEST = 156;
+  private static final int NAVY = Color.rgb(23, 55, 90);
+  private static final DateTimeFormatter CLOCK_FORMAT =
+      DateTimeFormatter.ofPattern("uuuu-MM-dd (EEE) HH:mm:ss", Locale.KOREA);
   private final Handler handler = new Handler(Looper.getMainLooper());
+  private final EnumMap<Route, Uri> latestVideos = new EnumMap<>(Route.class);
   private WebView web;
+  private TextView clock;
   private TextView status;
+  private Button routeA;
+  private Button routeB;
   private Button capture;
   private Button play;
   private String scrollScript;
+  private Route route;
   private boolean autoRequest;
   private boolean ready;
   private boolean loading;
@@ -49,14 +73,17 @@ public final class RouteVideoActivity extends Activity {
   private boolean recording;
   private boolean stopping;
   private boolean routeInterrupted;
-  private Uri latest;
   private long loadDeadline;
+  private int loadGeneration;
   private Intent captureGrant;
   private int captureResult;
 
   @Override public void onCreate(Bundle state) {
     super.onCreate(state);
-    autoRequest = state == null && fromTimetable(getIntent());
+    Route requested = routeFromTimetable(getIntent());
+    autoRequest = state == null && requested != null;
+    route = state != null ? Route.valueOf(state.getString("route", "B"))
+        : requested != null ? requested : Route.B;
     try {
       scrollScript = loadScrollScript();
     } catch (IOException error) {
@@ -71,17 +98,30 @@ public final class RouteVideoActivity extends Activity {
   @Override protected void onNewIntent(Intent intent) {
     super.onNewIntent(intent);
     setIntent(intent);
-    if (fromTimetable(intent) && !busy()) {
+    Route requested = routeFromTimetable(intent);
+    if (requested != null && !busy()) {
       autoRequest = true;
-      if (!ready && !loading) loadRoute();
-      maybeRequest();
+      if (requested != route || (!ready && !loading)) {
+        route = requested;
+        loadRoute();
+      } else {
+        maybeRequest();
+      }
     }
   }
 
-  private boolean fromTimetable(Intent intent) {
+  private Route routeFromTimetable(Intent intent) {
     Uri link = intent.getData();
-    return Intent.ACTION_VIEW.equals(intent.getAction()) && link != null
-        && "routevideo1560".equals(link.getScheme()) && "record".equals(link.getHost());
+    if (!Intent.ACTION_VIEW.equals(intent.getAction()) || link == null
+        || !"routevideo1560ab".equals(link.getScheme()) || !"record".equals(link.getHost())) return null;
+    if ("/A".equals(link.getPath())) return Route.A;
+    if ("/B".equals(link.getPath())) return Route.B;
+    return null;
+  }
+
+  @Override protected void onSaveInstanceState(Bundle state) {
+    state.putString("route", route.name());
+    super.onSaveInstanceState(state);
   }
 
   private String loadScrollScript() throws IOException {
@@ -114,6 +154,22 @@ public final class RouteVideoActivity extends Activity {
               | android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
       getWindow().setDecorFitsSystemWindows(false);
     }
+
+    // The clock belongs to the app surface, so single-app capture includes it.
+    clock = new TextView(this);
+    clock.setTextSize(17);
+    clock.setTextColor(Color.WHITE);
+    clock.setBackgroundColor(NAVY);
+    clock.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+    clock.setGravity(android.view.Gravity.CENTER);
+    clock.setPadding(dp(6), dp(8), dp(6), dp(8));
+    root.addView(clock, new LinearLayout.LayoutParams(-1, -2));
+
+    LinearLayout routePicker = new LinearLayout(this);
+    routePicker.setPadding(dp(8), 0, dp(8), 0);
+    routeA = addRouteButton(routePicker, Route.A);
+    routeB = addRouteButton(routePicker, Route.B);
+    root.addView(routePicker, new LinearLayout.LayoutParams(-1, -2));
 
     LinearLayout toolbar = new LinearLayout(this);
     toolbar.setGravity(android.view.Gravity.CENTER_VERTICAL);
@@ -148,28 +204,50 @@ public final class RouteVideoActivity extends Activity {
     web.setOnTouchListener((view, event) -> busy());
     web.setWebViewClient(new WebViewClient() {
       @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-        return request.isForMainFrame() && !ROUTE.equals(request.getUrl().toString());
+        return request.isForMainFrame() && !route.url.equals(request.getUrl().toString());
       }
 
       @Override public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
-        if (request.isForMainFrame() && loading) loadFailed();
+        if (request.isForMainFrame() && loading && route.url.equals(request.getUrl().toString())) loadFailed();
       }
 
       @Override public void onPageFinished(WebView view, String url) {
-        if (loading && ROUTE.equals(url)) checkRoute();
+        if (loading && route.url.equals(url)) checkRoute(loadGeneration);
       }
     });
     root.addView(web, new LinearLayout.LayoutParams(-1, 0, 1));
     setContentView(root);
   }
 
+  private final Runnable updateClock = new Runnable() {
+    @Override public void run() {
+      if (clock == null) return;
+      clock.setText(CLOCK_FORMAT.format(ZonedDateTime.now()));
+      handler.postDelayed(this, 1_000 - System.currentTimeMillis() % 1_000);
+    }
+  };
+
+  private Button addRouteButton(LinearLayout picker, Route choice) {
+    Button button = new Button(this);
+    button.setText(choice.number);
+    button.setOnClickListener(view -> {
+      if (route == choice || busy()) return;
+      autoRequest = false;
+      route = choice;
+      loadRoute();
+    });
+    picker.addView(button, new LinearLayout.LayoutParams(0, -2, 1));
+    return button;
+  }
+
   private void loadRoute() {
     autoRequest = autoRequest && !busy();
     ready = false;
     loading = true;
+    loadGeneration++;
     loadDeadline = SystemClock.uptimeMillis() + 25_000;
-    update("1560B 실시간 위치 불러오는 중");
-    web.loadUrl(ROUTE);
+    update(route.number + " 실시간 위치 불러오는 중");
+    web.loadUrl(route.url);
     handler.removeCallbacks(loadTimeout);
     handler.postDelayed(loadTimeout, 25_000);
   }
@@ -178,18 +256,22 @@ public final class RouteVideoActivity extends Activity {
     if (loading) loadFailed();
   };
 
-  private void checkRoute() {
-    if (!loading || isDestroyed()) return;
-    web.evaluateJavascript(scrollScript + "\nwindow.routeVideo1560.ready()", result -> {
-      if (!loading || isDestroyed()) return;
+  private String scrollCall(String method) {
+    return "window.routeVideo1560?." + method + "('" + route.name() + "')";
+  }
+
+  private void checkRoute(int generation) {
+    if (generation != loadGeneration || !loading || isDestroyed()) return;
+    web.evaluateJavascript(scrollScript + "\n" + scrollCall("ready"), result -> {
+      if (generation != loadGeneration || !loading || isDestroyed()) return;
       if ("true".equals(result)) {
         ready = true;
         loading = false;
         handler.removeCallbacks(loadTimeout);
-        update("1560B 실시간 버스 위치");
+        update(route.number + " 실시간 버스 위치");
         maybeRequest();
       } else if (SystemClock.uptimeMillis() < loadDeadline) {
-        handler.postDelayed(this::checkRoute, 300);
+        handler.postDelayed(() -> checkRoute(generation), 300);
       } else {
         loadFailed();
       }
@@ -209,9 +291,19 @@ public final class RouteVideoActivity extends Activity {
 
   private void update(String message) {
     status.setText(message);
+    updateRouteButton(routeA, route == Route.A);
+    updateRouteButton(routeB, route == Route.B);
     capture.setText(recording ? "녹화 끝내기" : ready ? "녹화 시작" : "다시 불러오기");
     capture.setEnabled(recording || (!busy() && !loading));
-    play.setVisibility(latest != null && !busy() ? android.view.View.VISIBLE : android.view.View.GONE);
+    play.setVisibility(latestVideos.containsKey(route) && !busy()
+        ? android.view.View.VISIBLE : android.view.View.GONE);
+  }
+
+  private void updateRouteButton(Button button, boolean selected) {
+    button.setSelected(selected);
+    button.setEnabled(!busy());
+    button.setBackgroundTintList(ColorStateList.valueOf(selected ? NAVY : Color.rgb(231, 238, 247)));
+    button.setTextColor(selected ? Color.WHITE : NAVY);
   }
 
   private void maybeRequest() {
@@ -261,7 +353,7 @@ public final class RouteVideoActivity extends Activity {
     if (captureGrant == null || !hasWindowFocus() || isFinishing()) return;
     Intent grant = captureGrant;
     captureGrant = null;
-    web.evaluateJavascript("window.routeVideo1560?.rewind()", result -> {
+    web.evaluateJavascript(scrollCall("rewind"), result -> {
       if (!starting || isFinishing() || isDestroyed()) return;
       if (!"true".equals(result) || !hasWindowFocus()) {
         starting = false;
@@ -274,6 +366,7 @@ public final class RouteVideoActivity extends Activity {
           .putExtra("grant", grant)
           .putExtra("resultCode", captureResult)
           .putExtra("receiver", receiver)
+          .putExtra("route", route.number)
           .putExtra("width", size[0])
           .putExtra("height", size[1]);
       try {
@@ -313,8 +406,8 @@ public final class RouteVideoActivity extends Activity {
         }
         starting = false;
         recording = true;
-        update("● 1560B 녹화 중");
-        web.evaluateJavascript("window.routeVideo1560?.start()", result -> {
+        update("● " + route.number + " 녹화 중");
+        web.evaluateJavascript(scrollCall("start"), result -> {
           if (!recording) return;
           if ("true".equals(result)) monitorScroll();
           else interruptRoute();
@@ -324,7 +417,7 @@ public final class RouteVideoActivity extends Activity {
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         web.evaluateJavascript("window.routeVideo1560?.stop()", null);
         if (code == RecordingService.SAVED) {
-          latest = Uri.parse(data.getString("uri"));
+          latestVideos.put(route, Uri.parse(data.getString("uri")));
           update(routeInterrupted ? "중단 지점까지 저장했습니다." : "갤러리에 영상을 저장했습니다.");
         } else {
           update("녹화 영상을 저장하지 못했습니다.");
@@ -363,14 +456,20 @@ public final class RouteVideoActivity extends Activity {
 
   private void playMovie() {
     try {
-      startActivity(new Intent(Intent.ACTION_VIEW).setDataAndType(latest, "video/mp4")
+      startActivity(new Intent(Intent.ACTION_VIEW).setDataAndType(latestVideos.get(route), "video/mp4")
           .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION));
     } catch (ActivityNotFoundException error) {
       Toast.makeText(this, "갤러리의 1560 폴더에서 열 수 있습니다.", Toast.LENGTH_LONG).show();
     }
   }
 
+  @Override protected void onStart() {
+    super.onStart();
+    updateClock.run();
+  }
+
   @Override protected void onStop() {
+    handler.removeCallbacks(updateClock);
     if (!asking && (recording || starting)) stopCapture();
     super.onStop();
   }

@@ -3,8 +3,8 @@
   let current;
   let frame;
 
-  function routeList() {
-    if (!/\b1560B\b/.test(document.body.innerText)) return null;
+  function routeList(route) {
+    if (!/^[AB]$/.test(route) || !new RegExp(`\\b1560${route}\\b`).test(document.body.innerText)) return null;
     const row = document.querySelector("[data-index]");
     for (let element = row?.parentElement; element; element = element.parentElement) {
       if (element.clientHeight > 0 && element.scrollHeight - element.clientHeight > 50 &&
@@ -18,17 +18,19 @@
     if (current?.state === "running") current.state = "stopped";
   }
 
-  function rewind() {
+  function rewind(route) {
     stop();
-    const list = routeList();
+    const list = routeList(route);
     if (!list) return false;
     list.scrollTo({top: 0, behavior: "instant"});
     return true;
   }
 
-  function start() {
-    if (!rewind()) return false;
-    const list = routeList();
+  function start(route) {
+    stop();
+    const list = routeList(route);
+    if (!list) return false;
+    list.scrollTo({top: 0, behavior: "instant"});
     const speed = Math.min(165, Math.max(90, list.clientHeight * 0.27)) / 1000;
     const run = current = {state: "running"};
     const begin = performance.now();
@@ -65,7 +67,7 @@
   }
 
   window.routeVideo1560 = {
-    ready: () => routeList() !== null,
+    ready: route => routeList(route) !== null,
     rewind,
     start,
     stop,

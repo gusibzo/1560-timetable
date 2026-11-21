@@ -1,8 +1,12 @@
 (() => {
   if (!/Android/i.test(navigator.userAgent)) return;
-  const guide = new URL("./route-video.html", document.baseURI).href;
-  const launch = "intent://record#Intent;scheme=routevideo1560;package=kr.palcheonjo.routevideo1560;";
   for (const link of document.querySelectorAll("[data-route-video]")) {
-    link.href = launch + "S.browser_fallback_url=" + encodeURIComponent(guide) + ";end";
+    const route = link.dataset.routeVideo;
+    if (route !== "A" && route !== "B") continue;
+    const guide = new URL("./route-video.html", document.baseURI);
+    guide.hash = "record-" + route;
+    link.href = `intent://record/${route}#Intent;scheme=routevideo1560ab;package=kr.palcheonjo.routevideo1560.ab;`
+      + "S.browser_fallback_url=" + encodeURIComponent(guide.href) + ";end";
+    link.hidden = false;
   }
 })();
