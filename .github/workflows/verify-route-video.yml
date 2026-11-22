@@ -39,10 +39,10 @@ jobs:
             done
           ' -- "$!" || { tail -100 "$RUNNER_TEMP/route-emulator.log"; exit 1; }
           adb shell input keyevent 82
-      - name: Install the published APK and open both routes
+      - name: Install the archived APK and open both routes
         shell: bash
         run: |
-          apk=$(sed -n 's#.*href="\./\(downloads/1560-route-video-[^"]*\.apk\)".*#\1#p' route-video.html)
+          apk=downloads/1560-route-video-1.2.apk
           app=kr.palcheonjo.routevideo1560.capture
           adb install "$apk"
           adb shell pm path "$app"

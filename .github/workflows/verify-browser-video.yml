@@ -1,0 +1,26 @@
+name: Verify browser route videos
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'route-video*'
+      - 'route-video-data/**'
+      - 'tools/test_route_video_browser.py'
+      - '.github/workflows/verify-browser-video.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Record, download and decode both routes
+        run: |
+          if ! command -v ffprobe >/dev/null; then
+            sudo apt-get update -qq && sudo apt-get install -y ffmpeg
+          fi
+          python3 -m venv "$RUNNER_TEMP/video-test"
+          "$RUNNER_TEMP/video-test/bin/pip" install -q playwright==1.56.0
+          "$RUNNER_TEMP/video-test/bin/python" tools/test_route_video_browser.py

@@ -1,35 +1,26 @@
 <!doctype html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#142b49">
-  <title>1560 A·B 노선 녹화</title>
-  <style>
-    *{box-sizing:border-box}body{margin:0;padding:24px 14px;background:#edf2f8;color:#17253f;font:16px/1.65 system-ui,sans-serif}
-    main{width:min(100%,430px);margin:10px auto;padding:24px;border-radius:20px;background:#fff;box-shadow:0 5px 22px #142b4918}
-    h1{margin:0;font-size:26px;line-height:1.2}p{margin:14px 0}ol{margin:18px 0;padding-left:22px}li+li{margin-top:8px}
-    .actions{display:grid;gap:10px;margin:20px 0}.button{display:block;padding:10px;min-height:48px;border:1px solid #b4c4dc;border-radius:11px;text-align:center;font-weight:750;text-decoration:none;color:#173c6b}
-    .button[hidden]{display:none}
-    .download{background:#183d6d;color:white;border-color:#183d6d}.back{color:#173c6b}
-  </style>
-  <script src="./route-video-link.js?v=208" defer></script>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#142e49"><title>1560 노선 녹화</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#edf2f6;color:#142e49;font:16px/1.5 system-ui,sans-serif}
+main{width:min(100%,510px);margin:auto;padding:12px 14px 24px}header,nav,.actions{display:flex;align-items:center;gap:8px}
+header{justify-content:space-between;margin-bottom:10px}h1{margin:0;font-size:22px}a{color:#174d77}nav{margin-bottom:10px}
+nav a,button,.save{font:700 16px system-ui;border-radius:10px;min-height:46px;display:grid;place-items:center;text-decoration:none}
+nav a{flex:1;background:#fff;border:1px solid #a6b6c7}nav a[aria-current=true]{background:#183c62;color:#fff}
+canvas{width:auto;max-width:100%;height:auto;max-height:60vh;display:block;margin:auto;border-radius:8px;background:#fff}
+.actions{justify-content:center;flex-wrap:wrap;margin:12px 0 6px}button,.save{flex:1;padding:9px 13px;border:0;color:white;background:#ab293b;cursor:pointer}
+button:disabled{opacity:.55}button#stop{background:#713049}.save{background:#096645}[hidden]{display:none!important}
+p{margin:8px 0;text-align:center}footer{text-align:center}.live{font-size:14px}
+</style>
+<script src="./route-video.js?v=209" defer></script>
 </head>
-<body>
-  <main>
-    <h1>1560 A·B 노선 녹화</h1>
-    <p>영상에는 현재 날짜·시간과 노선 화면이 나옵니다. 마지막 정류장까지 천천히 내려가며 녹화합니다.</p>
-    <ol>
-      <li>아래에서 <strong>1560 A·B 노선 녹화 1.2</strong> 앱을 설치하세요.</li>
-      <li><strong>1560A 녹화 열기</strong> 또는 <strong>1560B 녹화 열기</strong>를 누르고, 화면 공유에서 <strong>앱 하나</strong>를 선택한 뒤 <strong>1560 A·B 노선 녹화</strong>를 고르세요.</li>
-      <li>일찍 끝내려면 휴대폰의 <strong>뒤로 가기</strong>를 누르세요. 영상은 <strong>갤러리 → 1560</strong>에서 볼 수 있습니다.</li>
-    </ol>
-    <div class="actions">
-      <a class="button download" href="./downloads/1560-route-video-1.2.apk" download>안드로이드 앱 1.2 받기</a>
-      <a class="button" id="record-A" href="#record-A" data-route-video="A" hidden>1560A 녹화 열기</a>
-      <a class="button" id="record-B" href="#record-B" data-route-video="B" hidden>1560B 녹화 열기</a>
-    </div>
-    <a class="back" href="./?v=208">1560 시간표로 돌아가기</a>
-  </main>
-</body>
-</html>
+<body><main>
+<header><h1>1560 노선 녹화</h1><a href="./?v=209">시간표로</a></header>
+<nav aria-label="녹화할 노선"><a href="#record-A" id="record-A">1560A</a><a href="#record-B" id="record-B">1560B</a></nav>
+<canvas id="film" width="640" height="1000" aria-label="녹화할 날짜·시간과 노선 미리보기"></canvas>
+<div class="actions"><button id="start" type="button" disabled>● 녹화 시작</button><button id="stop" type="button" hidden>녹화 끝내기</button><a class="save" id="save" hidden>영상 저장</a></div>
+<p id="status" role="status">노선을 불러오는 중입니다.</p>
+<footer><a class="live" id="official" target="_blank" rel="noopener noreferrer">경기버스 실시간 위치 보기</a></footer>
+</main></body></html>

@@ -6,22 +6,16 @@ const root = process.argv[2] || "_site";
 const read = path => readFileSync(`${root}/${path}`, "utf8");
 const timetable = read("index.html");
 const guide = read("route-video.html");
-const launchScript = read("route-video-link.js");
+assert.doesNotMatch(guide, /intent:\/\/|href="[^"]*\.apk/);
 const scrollScript = read("android-route-video/assets/route-scroll.js");
 
-assert.match(guide, /href="\.\/downloads\/1560-route-video-1\.2\.apk"/);
 for (const route of ["A", "B"]) {
-  assert.match(timetable, new RegExp(`href="\\./route-video\\.html#record-${route}" data-route-video="${route}">● 1560${route} 노선 녹화`));
-  assert.match(guide, new RegExp(`id="record-${route}"[^>]*data-route-video="${route}"`));
-  const link = {dataset: {routeVideo: route}, href: "#record-" + route, hidden: true};
-  const document = {
-    baseURI: "https://example.com/timetable/",
-    querySelectorAll: () => [link]
-  };
-  runInNewContext(launchScript, {document, navigator: {userAgent: "Android"}, URL});
-  const fallback = encodeURIComponent(`https://example.com/timetable/route-video.html#record-${route}`);
-  assert.equal(link.href, `intent://record/${route}#Intent;scheme=routevideo1560capture;package=kr.palcheonjo.routevideo1560.capture;S.browser_fallback_url=${fallback};end`);
-  assert.equal(link.hidden, false);
+  assert.match(timetable, new RegExp(`href="\\./route-video\\.html\\?start=1#record-${route}" data-route-video="${route}">● 1560${route} 노선 녹화`));
+  assert.ok(guide.includes('href="#record-' + route + '"'));
+  const dataset = JSON.parse(read("route-video-data/" + route + ".json"));
+  assert.equal(dataset.route, route);
+  assert.ok(dataset.stops.length > 2);
+  assert.ok(dataset.stops.every((station, i) => station.name && (!i || station.seq > dataset.stops[i-1].seq)));
 
   const list = {
     clientHeight: 500, scrollHeight: 850, scrollTop: 125, isConnected: true,
