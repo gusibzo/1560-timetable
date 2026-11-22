@@ -5,6 +5,7 @@
   const ctx = film.getContext("2d", {alpha: false});
   const start = byId("start"), stop = byId("stop"), save = byId("save"), status = byId("status");
   const urls = {A: "2NzYyMzQwMDA4ODQ0NDkw4", B: "5NDYzMjMyMjgwMDA0MzM2MDUzNg5"};
+  const busFeed = "https://timetable-kma-feed.gusibzo.chatgpt.site/api/gbis/";
   const pad = n => String(n).padStart(2, "0");
   const day = d => d.getFullYear() + "." + pad(d.getMonth() + 1) + "." + pad(d.getDate());
   const time = d => [d.getHours(), d.getMinutes(), d.getSeconds()].map(pad).join(":");
@@ -17,7 +18,7 @@
   // Measured on the supplied 720 px wide recording: about 243 px per second.
   const pixelsPerSecond = 243;
   const supported = !!(window.MediaRecorder && film.captureStream);
-  let route, data, turnIndex, blobUrl, active, generation = 0;
+  let route, data, turnIndex, blobUrl, active, loading, generation = 0;
   const entry = new URL(location.href);
   let autoStart = entry.searchParams.get("start") === "1";
   if (autoStart) {
@@ -41,13 +42,16 @@
     label(text, x + w / 2, y + h / 2 + size * 0.34, size, color, 700, "center");
   }
 
-  function snapshot(now) {
-    const obs = data.observation;
+  function snapshot(now, obs = data?.observation) {
     const age = obs ? now - Date.parse(obs.at) : NaN;
-    return Number.isFinite(age) && age >= -60000 && age < 15 * 60000 ? obs : null;
+    return Array.isArray(obs?.buses) && Number.isFinite(age) && age >= -60000 && age < 15 * 60000 ? obs : null;
   }
 
-  function drawHeading(now, observation) {
+  function seatLabel(bus) {
+    return Number.isInteger(bus.seats) && bus.seats >= 0 ? bus.seats + "석" : "미제공";
+  }
+
+  function drawHeading(now, observation, elapsed) {
     const center = film.width / 2;
     rect(0, 0, film.width, 144, "#f2f4f8");
     label("버스 위치", center, 54, 36, ink, 700, "center");
@@ -55,10 +59,18 @@
     pill(center - 175, 169, 130, 46, "#fae7eb", "직행좌석", 27, "#aa1936");
     label("1560" + route, center - 26, 207, 51, "#b51336", 800);
     if (!data) return;
-    label(data.regions || "서울, 수원, 용인", center, 254, 30, ink, 600, "center");
+    const buses = observation?.buses || [];
+    if (buses.length) {
+      const bus = buses[Math.floor(elapsed / 3500) % buses.length];
+      const number = bus.vehicle ? bus.vehicle + "호" : "번호 미상";
+      label("운행 " + buses.length + "대  ·  " + number + "  ·  잔여 " + seatLabel(bus),
+        center, 256, 34, "#165532", 750, "center");
+    } else {
+      label(data.regions || "서울, 수원, 용인", center, 254, 30, ink, 600, "center");
+    }
     let source = "경기버스정보 · 차량 위치 갱신 대기";
     if (observation) {
-      source = "경기버스정보 · " + observedTime.format(new Date(observation.at)) + " 조회";
+      source = "경기버스정보 · " + observedTime.format(new Date(observation.at)) + " 기준";
       if (!observation.buses.length) source += " · 운행 차량 없음";
     }
     label(source, center, 295, 23, "#4e5a67", 500, "center");
@@ -81,13 +93,8 @@
 
   function vehicle(bus, middle) {
     busSymbol(151, middle - 25);
-    const seats = bus.seats;
-    if (Number.isInteger(seats) && seats >= 0) {
-      pill(44, middle - 29, 94, 31, "#e1f4df", seats + "석", 24, "#245d2e");
-      label(bus.vehicle || "번호 미상", 91, middle + 27, 26, ink, 600, "center");
-    } else {
-      label(bus.vehicle || "번호 미상", 91, middle + 9, 26, ink, 600, "center");
-    }
+    pill(29, middle - 33, 114, 37, "#d5f1cf", seatLabel(bus), 29, "#204f26");
+    label(bus.vehicle || "번호 미상", 86, middle + 32, 29, ink, 650, "center");
   }
 
   function stopMarker(middle, color, endpoint) {
@@ -115,9 +122,9 @@
     label(display, x, y, 35, passing ? "#697481" : ink, 600);
   }
 
-  function draw(offset = 0, observation = data && snapshot(Date.now())) {
+  function draw(offset = 0, observation = snapshot(Date.now()), elapsed = 0) {
     rect(0, 0, film.width, film.height, "#fff");
-    drawHeading(new Date(), observation);
+    drawHeading(new Date(), observation, elapsed);
     if (!data) return;
     ctx.save(); ctx.beginPath(); ctx.rect(0, listTop, film.width, visible); ctx.clip();
     const first = Math.floor(offset / rowHeight);
@@ -151,32 +158,60 @@
     ctx.restore();
   }
 
-  async function loadRoute(refresh = false) {
+  async function readJson(url) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 9000);
+    try {
+      const response = await fetch(url, {cache: "no-store", credentials: "omit", signal: controller.signal});
+      if (!response.ok) throw Error();
+      return await response.json();
+    } finally { clearTimeout(timer); }
+  }
+
+  async function loadRoute(wantRecording = false) {
     if (active) return;
     const selected = location.hash === "#record-B" ? "B" : "A";
     const ticket = ++generation;
-    if (!refresh || selected !== route) {
-      route = selected; data = null; start.disabled = true; status.textContent = "노선을 불러오는 중입니다.";
+    if (selected !== route) {
+      route = selected; data = null;
       for (const key of Object.keys(urls)) byId("record-" + key).setAttribute("aria-current", String(key === route));
       byId("official").href = "https://m.gbis.go.kr/routeBusLocation/" + urls[route];
+      save.hidden = true; save.removeAttribute("href");
       draw();
     }
-    try {
-      const response = await fetch("./route-video-data/" + selected + ".json", {cache: "no-cache"});
-      if (!response.ok) throw Error();
-      const value = await response.json();
-      if (value.route !== selected || !Array.isArray(value.stops) || value.stops.length < 2) throw Error();
-      if (ticket !== generation || active) return;
-      data = value; turnIndex = data.stops.findIndex(station => station.turn);
-      draw(); start.disabled = !supported;
-      if (!refresh || !save.href) status.textContent = supported ? "녹화 시작을 누르면 맨 위부터 자동으로 내려갑니다." : "이 브라우저는 영상 저장을 지원하지 않습니다. Chrome에서 열어 주세요.";
-      if (autoStart) {
-        autoStart = false;
-        if (supported) record();
-      }
-    } catch {
-      if (ticket === generation && !data) status.textContent = "노선을 불러오지 못했습니다. 다시 열어 주세요.";
+    loading = true; start.disabled = true;
+    status.textContent = "차량 위치와 잔여 좌석을 조회하고 있습니다.";
+    const [stations, live] = await Promise.allSettled([
+      readJson("./route-video-data/" + selected + ".json"), readJson(busFeed + selected)
+    ]);
+    if (ticket !== generation) return;
+    loading = false;
+    const latest = stations.value;
+    const routeData = latest?.route === selected && latest.stops?.length > 1 ? latest : data;
+    if (!routeData) {
+      start.disabled = !supported; start.textContent = "다시 조회";
+      status.textContent = "노선을 불러오지 못했습니다. 다시 조회해 주세요."; return;
     }
+    const stops = new Map(routeData.stops.map(s => [s.seq, s.id]));
+    const candidates = [live.value?.route === selected ? live.value : null, latest?.observation, data?.observation]
+      .filter(obs => obs && snapshot(Date.now(), obs) && obs.buses.every(bus =>
+        stops.has(bus.seq) && (bus.stationId == null || bus.stationId === stops.get(bus.seq))))
+      .sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
+    const observation = candidates[0] || null;
+    data = {...routeData, observation}; turnIndex = data.stops.findIndex(station => station.turn);
+    draw(0, observation);
+    const ready = !!observation?.buses.length;
+    start.disabled = !supported;
+    start.textContent = ready ? "● 녹화 시작" : "차량 다시 조회";
+    if (!supported) {
+      status.textContent = "이 브라우저는 영상 저장을 지원하지 않습니다. Chrome에서 열어 주세요."; return;
+    }
+    if (!observation || !ready) {
+      status.textContent = observation ? "경기버스정보에 표시된 운행 차량이 0대입니다. 잠시 뒤 다시 조회해 주세요." :
+        "최근 차량 정보를 받지 못했습니다. 차량 다시 조회를 눌러 주세요."; return;
+    }
+    if (wantRecording && !document.hidden) record(observation);
+    else status.textContent = "차량 " + observation.buses.length + "대의 위치를 확인했습니다. 녹화 시작을 누르세요.";
   }
 
   function finish(message) {
@@ -186,10 +221,9 @@
     if (active.recorder.state !== "inactive") active.recorder.stop();
   }
 
-  function record() {
+  function record(observation) {
     if (!data || active || !supported) return;
     const stamp = new Date();
-    const observation = snapshot(+stamp);
     draw(0, observation);
     let stream, recorder;
     try {
@@ -238,17 +272,17 @@
     const begin = performance.now(), bottom = Math.max(0, data.stops.length * rowHeight - visible);
     function tick(now) {
       const elapsed = now - begin;
-      draw(Math.min(bottom, Math.max(0, elapsed - 900) * pixelsPerSecond / 1000), observation);
+      draw(Math.min(bottom, Math.max(0, elapsed - 900) * pixelsPerSecond / 1000), observation, elapsed);
       if (elapsed >= 1900 + 1000 * bottom / pixelsPerSecond) finish("마지막 정류장까지 녹화했습니다.");
       else run.frame = requestAnimationFrame(tick);
     }
     run.frame = requestAnimationFrame(tick);
   }
-  start.addEventListener("click", record);
+  start.addEventListener("click", () => loadRoute(true));
   stop.addEventListener("click", () => finish("여기까지 녹화했습니다."));
   window.addEventListener("hashchange", () => loadRoute());
   document.addEventListener("visibilitychange", () => { if (document.hidden) finish("화면 전환 전까지 녹화했습니다."); });
   setInterval(() => { if (data && !active && !document.hidden) draw(); }, 1000);
-  setInterval(() => { if (!document.hidden) loadRoute(true); }, 60000);
-  loadRoute();
+  setInterval(() => { if (!document.hidden && !active && !loading && save.hidden) loadRoute(); }, 60000);
+  loadRoute(autoStart);
 })();
