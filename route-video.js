@@ -64,7 +64,7 @@
       const bus = buses[Math.floor(elapsed / 3500) % buses.length];
       const number = bus.vehicle ? bus.vehicle + "호" : "번호 미상";
       label("운행 " + buses.length + "대  ·  " + number + "  ·  잔여 " + seatLabel(bus),
-        center, 256, 34, "#165532", 750, "center");
+        center, 256, 34, "#165532", 700, "center");
     } else {
       label(data.regions || "서울, 수원, 용인", center, 254, 30, ink, 600, "center");
     }
@@ -94,7 +94,7 @@
   function vehicle(bus, middle) {
     busSymbol(151, middle - 25);
     pill(29, middle - 33, 114, 37, "#d5f1cf", seatLabel(bus), 29, "#204f26");
-    label(bus.vehicle || "번호 미상", 86, middle + 32, 29, ink, 650, "center");
+    label(bus.vehicle || "번호 미상", 86, middle + 32, 29, ink, 700, "center");
   }
 
   function stopMarker(middle, color, endpoint) {
