@@ -271,7 +271,7 @@
     status.textContent = "녹화 중에는 이 화면을 켜 두세요. 마지막 정류장에서 자동으로 끝납니다.";
     const begin = performance.now(), bottom = Math.max(0, data.stops.length * rowHeight - visible);
     function tick(now) {
-      const elapsed = now - begin;
+      const elapsed = Math.max(0, now - begin);
       draw(Math.min(bottom, Math.max(0, elapsed - 900) * pixelsPerSecond / 1000), observation, elapsed);
       if (elapsed >= 1900 + 1000 * bottom / pixelsPerSecond) finish("마지막 정류장까지 녹화했습니다.");
       else run.frame = requestAnimationFrame(tick);

@@ -25,6 +25,14 @@ async def record_route(browser, url, route, output_dir):
         # Check the exact text painted into the video, including first/turn/last
         # stops. A fresh fixture places a vehicle by the first stop for both routes.
         await page.add_init_script("""
+          // A frame timestamp can precede the click handler's performance.now().
+          const raf = window.requestAnimationFrame.bind(window);
+          let firstFrame = true;
+          window.requestAnimationFrame = callback => raf(time => {
+            const stamp = firstFrame ? 0 : time;
+            firstFrame = false;
+            callback(stamp);
+          });
           window.filmLabels = new Set();
           const fill = CanvasRenderingContext2D.prototype.fillText;
           CanvasRenderingContext2D.prototype.fillText = function (text, ...args) {
