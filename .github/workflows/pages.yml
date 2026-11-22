@@ -6,6 +6,7 @@ on:
   schedule:
     - cron: '*/5 * * * *'
 permissions:
+  actions: read
   contents: read
   pages: write
   id-token: write
@@ -65,10 +66,24 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
+          name: github-pages-${{ github.run_attempt }}
           path: _site
+      - name: Wait until the uploaded Pages artifact is listed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_NAME: github-pages-${{ github.run_attempt }}
+        run: |
+          for delay in 2 4 8 16 30; do
+            sleep "$delay"
+            count=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts?name=$ARTIFACT_NAME" --jq '.total_count') || continue
+            if [ "$count" = 1 ]; then exit 0; fi
+          done
+          exit 1
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-${{ github.run_attempt }}
       - name: Mark Pages deployment status
         if: always()
         shell: bash
