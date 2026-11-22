@@ -9,17 +9,17 @@ main{width:min(100%,510px);margin:auto;padding:12px 14px 24px}header,nav,.action
 header{justify-content:space-between;margin-bottom:10px}h1{margin:0;font-size:22px}a{color:#174d77}nav{margin-bottom:10px}
 nav a,button,.save{font:700 16px system-ui;border-radius:10px;min-height:46px;display:grid;place-items:center;text-decoration:none}
 nav a{flex:1;background:#fff;border:1px solid #a6b6c7}nav a[aria-current=true]{background:#183c62;color:#fff}
-canvas{width:auto;max-width:100%;height:auto;max-height:60vh;display:block;margin:auto;border-radius:8px;background:#fff}
+canvas{width:auto;max-width:100%;height:auto;max-height:70vh;max-height:70svh;display:block;margin:auto;border-radius:8px;background:#fff}
 .actions{justify-content:center;flex-wrap:wrap;margin:12px 0 6px}button,.save{flex:1;padding:9px 13px;border:0;color:white;background:#ab293b;cursor:pointer}
 button:disabled{opacity:.55}button#stop{background:#713049}.save{background:#096645}[hidden]{display:none!important}
 p{margin:8px 0;text-align:center}footer{text-align:center}.live{font-size:14px}
 </style>
-<script src="./route-video.js?v=209" defer></script>
+<script src="./route-video.js?v=210" defer></script>
 </head>
 <body><main>
-<header><h1>1560 노선 녹화</h1><a href="./?v=209">시간표로</a></header>
+<header><h1>1560 노선 녹화</h1><a href="./?v=210">시간표로</a></header>
 <nav aria-label="녹화할 노선"><a href="#record-A" id="record-A">1560A</a><a href="#record-B" id="record-B">1560B</a></nav>
-<canvas id="film" width="640" height="1000" aria-label="녹화할 날짜·시간과 노선 미리보기"></canvas>
+<canvas id="film" width="720" height="1140" aria-label="녹화할 날짜·시간과 노선 미리보기"></canvas>
 <div class="actions"><button id="start" type="button" disabled>● 녹화 시작</button><button id="stop" type="button" hidden>녹화 끝내기</button><a class="save" id="save" hidden>영상 저장</a></div>
 <p id="status" role="status">노선을 불러오는 중입니다.</p>
 <footer><a class="live" id="official" target="_blank" rel="noopener noreferrer">경기버스 실시간 위치 보기</a></footer>

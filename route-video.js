@@ -11,9 +11,13 @@
   const clock = d => day(d) + " (" + "일월화수목금토"[d.getDay()] + ") " + time(d);
   const observedTime = new Intl.DateTimeFormat("ko-KR", {timeZone: "Asia/Seoul", month: "numeric",
     day: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23"});
-  const top = 140, rowHeight = 92, visible = film.height - top;
+  const listTop = 372, rowHeight = 128, visible = film.height - listTop;
+  const rail = 220, nameX = 282;
+  const outbound = "#375fcd", inbound = "#cd4779", ink = "#17202b";
+  // Measured on the supplied 720 px wide recording: about 243 px per second.
+  const pixelsPerSecond = 243;
   const supported = !!(window.MediaRecorder && film.captureStream);
-  let route, data, active, blobUrl, generation = 0;
+  let route, data, turnIndex, blobUrl, active, generation = 0;
   const entry = new URL(location.href);
   let autoStart = entry.searchParams.get("start") === "1";
   if (autoStart) {
@@ -21,11 +25,20 @@
     history.replaceState(null, "", entry);
   }
 
-  function label(value, x, y, size, color, weight = 500, maxWidth) {
-    ctx.font = weight + " " + size + "px system-ui,sans-serif";
+  function rect(x, y, w, h, color, radius = 0) {
     ctx.fillStyle = color;
-    if (maxWidth) ctx.fillText(value, x, y, maxWidth);
-    else ctx.fillText(value, x, y);
+    if (!radius) { ctx.fillRect(x, y, w, h); return; }
+    ctx.beginPath(); ctx.roundRect(x, y, w, h, radius); ctx.fill();
+  }
+
+  function label(value, x, y, size, color = ink, weight = 500, align = "left") {
+    ctx.font = weight + " " + size + "px system-ui,Noto Sans KR,Noto Sans CJK KR,sans-serif";
+    ctx.textAlign = align; ctx.fillStyle = color; ctx.fillText(value, x, y);
+  }
+
+  function pill(x, y, w, h, fill, text, size, color) {
+    rect(x, y, w, h, fill, h / 2);
+    label(text, x + w / 2, y + h / 2 + size * 0.34, size, color, 700, "center");
   }
 
   function snapshot(now) {
@@ -34,41 +47,105 @@
     return Number.isFinite(age) && age >= -60000 && age < 15 * 60000 ? obs : null;
   }
 
-  function draw(offset = 0, observation = data && snapshot(Date.now())) {
-    ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, film.width, film.height);
-    ctx.fillStyle = "#142e49"; ctx.fillRect(0, 0, film.width, top);
-    label("1560" + route, 22, 51, 41, "white", 850);
-    label(clock(new Date()), 188, 49, 28, "white", 700, 428);
+  function drawHeading(now, observation) {
+    const center = film.width / 2;
+    rect(0, 0, film.width, 144, "#f2f4f8");
+    label("버스 위치", center, 54, 36, ink, 700, "center");
+    label(clock(now), center, 115, 42, ink, 700, "center");
+    pill(center - 175, 169, 130, 46, "#fae7eb", "직행좌석", 27, "#aa1936");
+    label("1560" + route, center - 26, 207, 51, "#b51336", 800);
     if (!data) return;
-    label("경기버스정보  ·  " + data.stops.length + "개 정류장", 24, 88, 24, "#dce9f6", 650);
-    let observationText = "차량 위치 갱신 대기";
+    label(data.regions || "서울, 수원, 용인", center, 254, 30, ink, 600, "center");
+    let source = "경기버스정보 · 차량 위치 갱신 대기";
     if (observation) {
-      observationText = "차량 위치  " + observedTime.format(new Date(observation.at)) + " 기준";
-      if (!observation.buses.length) observationText += "  ·  조회 차량 없음";
+      source = "경기버스정보 · " + observedTime.format(new Date(observation.at)) + " 조회";
+      if (!observation.buses.length) source += " · 운행 차량 없음";
     }
-    label(observationText, 24, 121, 21, "#c8e9ee", 550);
-    ctx.save(); ctx.beginPath(); ctx.rect(0, top, film.width, visible); ctx.clip();
+    label(source, center, 295, 23, "#4e5a67", 500, "center");
+    const directions = data.directions || ["신분당선강남역(중)", "경희대학교"];
+    rect(0, 312, film.width, 2, "#e0e3e8");
+    directions.forEach((direction, i) => {
+      label(direction + " 방면", center * (i + 0.5), 353, 27, ink, 500, "center");
+      rect(i * center, listTop - 7, center, 7, i ? "#f0a0bc" : "#9ebdf5");
+    });
+  }
+
+  function busSymbol(x, y) {
+    rect(x + 4, y + 38, 9, 12, "#9a1630", 3);
+    rect(x + 33, y + 38, 9, 12, "#9a1630", 3);
+    rect(x, y, 46, 44, "#c41638", 9);
+    rect(x + 5, y + 6, 36, 22, "#eff7ff", 4);
+    rect(x + 5, y + 34, 9, 4, "#fff5bb", 2);
+    rect(x + 32, y + 34, 9, 4, "#fff5bb", 2);
+  }
+
+  function vehicle(bus, middle) {
+    busSymbol(151, middle - 25);
+    const seats = bus.seats;
+    if (Number.isInteger(seats) && seats >= 0) {
+      pill(44, middle - 29, 94, 31, "#e1f4df", seats + "석", 24, "#245d2e");
+      label(bus.vehicle || "번호 미상", 91, middle + 27, 26, ink, 600, "center");
+    } else {
+      label(bus.vehicle || "번호 미상", 91, middle + 9, 26, ink, 600, "center");
+    }
+  }
+
+  function stopMarker(middle, color, endpoint) {
+    if (endpoint) {
+      rect(rail - 15, middle - 15, 30, 30, color, 7);
+      ctx.beginPath(); ctx.arc(rail, middle, 6, 0, 2 * Math.PI); ctx.fillStyle = "white"; ctx.fill();
+      return;
+    }
+    ctx.beginPath(); ctx.arc(rail, middle, 14, 0, 2 * Math.PI);
+    ctx.fillStyle = "white"; ctx.fill();
+    ctx.strokeStyle = color; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(rail - 8, middle - 3);
+    ctx.lineTo(rail, middle + 6); ctx.lineTo(rail + 8, middle - 3);
+    ctx.lineWidth = 3.5; ctx.lineJoin = "round"; ctx.stroke();
+  }
+
+  function stopName(name, x, y, passing) {
+    ctx.font = "600 35px system-ui,Noto Sans KR,Noto Sans CJK KR,sans-serif";
+    const width = film.width - x - 20;
+    let display = name;
+    if (ctx.measureText(display).width > width) {
+      while (display && ctx.measureText(display + "…").width > width) display = display.slice(0, -1);
+      display += "…";
+    }
+    label(display, x, y, 35, passing ? "#697481" : ink, 600);
+  }
+
+  function draw(offset = 0, observation = data && snapshot(Date.now())) {
+    rect(0, 0, film.width, film.height, "#fff");
+    drawHeading(new Date(), observation);
+    if (!data) return;
+    ctx.save(); ctx.beginPath(); ctx.rect(0, listTop, film.width, visible); ctx.clip();
     const first = Math.floor(offset / rowHeight);
     for (let i = first; i < data.stops.length; i++) {
-      const station = data.stops[i], y = top + i * rowHeight - offset;
+      const station = data.stops[i], y = listTop + i * rowHeight - offset;
       if (y >= film.height) break;
-      const buses = observation ? observation.buses.filter(b => b.seq === station.seq) : [];
-      ctx.fillStyle = buses.length ? "#e5f5ee" : i % 2 ? "#f3f6fa" : "#fff";
-      ctx.fillRect(0, y, film.width, rowHeight);
-      const middle = y + rowHeight / 2;
-      ctx.fillStyle = "#90adbe";
-      ctx.fillRect(41, i === 0 ? middle : y, 4, (i === 0 || i === data.stops.length - 1) ? rowHeight / 2 : rowHeight);
-      ctx.beginPath(); ctx.arc(43, middle, 11, 0, Math.PI * 2);
-      ctx.fillStyle = station.turn ? "#b33c38" : buses.length ? "#13735a" : "#47758e"; ctx.fill();
-      label(station.name, 78, y + 40, 28, "#102e43", 750, buses.length ? 420 : 544);
-      const info = [station.seq + "번째", station.area, station.number, station.turn ? "회차" : ""].filter(Boolean);
-      label(info.join("  ·  "), 79, y + 72, 20, "#4e6879", 500, 423);
-      if (buses.length) {
-        label(buses.length === 1 && buses[0].vehicle ? buses[0].vehicle + "호" : buses.length + "대",
-          511, y + 40, 25, "#09563f", 800, 113);
-        const seats = buses[0].seats;
-        label(buses.length === 1 && Number.isInteger(seats) && seats >= 0 ? "빈자리 " + seats : "차량 위치",
-          511, y + 69, 18, "#236751", 600, 112);
+      const middle = y + rowHeight / 2, last = i === data.stops.length - 1;
+      const color = turnIndex >= 0 && i > turnIndex ? inbound : outbound;
+      rect(0, y + rowHeight - 2, film.width, 2, "#e1e4e8");
+      if (i > 0) rect(rail - 4.5, y, 9, rowHeight / 2, color);
+      if (!last) rect(rail - 4.5, middle, 9, rowHeight / 2, i === turnIndex ? inbound : color);
+      stopMarker(middle, color, i === 0 || last || i === turnIndex);
+
+      const passing = station.name.endsWith("(경유)");
+      if (station.toilet) pill(nameX, y + 22, 50, 31, "#eef1f5", "WC", 18, "#414c5a");
+      stopName(station.name.replace(/\(경유\)$/, "(미정차)"), station.toilet ? nameX + 60 : nameX, y + 53, passing);
+      const kind = i === 0 ? "기점" : last ? "종점" : i === turnIndex ? "회차" : "";
+      if (kind) pill(nameX, y + 73, 68, 33, color, kind, 22, "#fff");
+      label([station.number, station.area].filter(Boolean).join(" | "), nameX + (kind ? 79 : 0),
+        y + 99, 29, "#35414e");
+      const buses = observation?.buses.filter(bus => bus.seq === station.seq) || [];
+      if (buses.length === 1) vehicle(buses[0], middle);
+      if (buses.length === 2) {
+        vehicle(buses[0], middle - 30); vehicle(buses[1], middle + 31);
+      }
+      if (buses.length > 2) {
+        vehicle(buses[0], middle - 17);
+        label("외 " + (buses.length - 1) + "대", 113, y + 111, 24, ink, 600, "center");
       }
     }
     ctx.restore();
@@ -90,7 +167,8 @@
       const value = await response.json();
       if (value.route !== selected || !Array.isArray(value.stops) || value.stops.length < 2) throw Error();
       if (ticket !== generation || active) return;
-      data = value; draw(); start.disabled = !supported;
+      data = value; turnIndex = data.stops.findIndex(station => station.turn);
+      draw(); start.disabled = !supported;
       if (!refresh || !save.href) status.textContent = supported ? "녹화 시작을 누르면 맨 위부터 자동으로 내려갑니다." : "이 브라우저는 영상 저장을 지원하지 않습니다. Chrome에서 열어 주세요.";
       if (autoStart) {
         autoStart = false;
@@ -115,12 +193,12 @@
     draw(0, observation);
     let stream, recorder;
     try {
-      stream = film.captureStream(24);
-      const types = ["video/mp4;codecs=avc1.42001E", "video/mp4", "video/webm;codecs=vp8", "video/webm", ""];
+      stream = film.captureStream(30);
+      const types = ["video/mp4;codecs=avc1.420020", "video/mp4", "video/webm;codecs=vp8", "video/webm", ""];
       for (const mimeType of types) {
         if (mimeType && !MediaRecorder.isTypeSupported(mimeType)) continue;
         try {
-          recorder = new MediaRecorder(stream, mimeType ? {mimeType, videoBitsPerSecond: 2600000} : {});
+          recorder = new MediaRecorder(stream, mimeType ? {mimeType, videoBitsPerSecond: 4000000} : {});
           recorder.start(1000); break;
         } catch { recorder = null; }
       }
@@ -160,8 +238,8 @@
     const begin = performance.now(), bottom = Math.max(0, data.stops.length * rowHeight - visible);
     function tick(now) {
       const elapsed = now - begin;
-      draw(Math.min(bottom, Math.max(0, elapsed - 1000) * 0.112), observation);
-      if (elapsed >= 2000 + bottom / 0.112) finish("마지막 정류장까지 녹화했습니다.");
+      draw(Math.min(bottom, Math.max(0, elapsed - 900) * pixelsPerSecond / 1000), observation);
+      if (elapsed >= 1900 + 1000 * bottom / pixelsPerSecond) finish("마지막 정류장까지 녹화했습니다.");
       else run.frame = requestAnimationFrame(tick);
     }
     run.frame = requestAnimationFrame(tick);

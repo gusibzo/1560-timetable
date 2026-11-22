@@ -20,8 +20,15 @@ def stations(data):
     if len(rows) < 2 or len({row["stationSeq"] for row in rows}) != len(rows):
         raise ValueError("Incomplete station list")
     return [{"seq": row["stationSeq"], "id": row["stationId"], "name": row["stationName"],
-             "area": row.get("regionName", ""), "number": str(row.get("mobileNo") or "").zfill(5)
+             "area": row.get("regionName", ""), "toilet": row.get("toiletStYn") == "Y",
+             "number": str(row.get("mobileNo") or "").zfill(5)
              if row.get("mobileNo") else "", "turn": row.get("turnYn") == "Y"} for row in rows]
+
+
+def service_info(detail):
+    row = detail["record"]
+    return {"regions": ", ".join(s.strip() for s in row["regionName"].split(",")),
+            "directions": [row["endStationName"], row["startStationName"]]}
 
 
 def positions(data, route_id, stops):
@@ -50,6 +57,11 @@ def refresh(item, directory):
     path = directory / f"{route}.json"
     fallback = json.loads(path.read_text())
     try:
+        info = service_info(fetch("routeDetail", route_id))
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        print(f"1560{route} using bundled route directions: {error}", file=sys.stderr)
+        info = {key: fallback[key] for key in ("regions", "directions")}
+    try:
         stops = stations(fetch("routeStations", route_id))
     except (OSError, ValueError, KeyError, TypeError) as error:
         print(f"1560{route} using bundled station list: {error}", file=sys.stderr)
@@ -59,7 +71,7 @@ def refresh(item, directory):
     except (OSError, ValueError, KeyError, TypeError) as error:
         print(f"1560{route} position data unavailable: {error}", file=sys.stderr)
         observation = None
-    path.write_text(json.dumps({"route": route, "stops": stops, "observation": observation},
+    path.write_text(json.dumps({"route": route, **info, "stops": stops, "observation": observation},
                                ensure_ascii=False, separators=(",", ":")) + "\n")
     print(f"1560{route}: {len(stops)} stations; positions available: {observation is not None}")
 
