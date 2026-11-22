@@ -1,0 +1,45 @@
+name: Verify 1560 route recorder installation
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android-route-video/**'
+      - 'downloads/1560-route-video*.apk'
+      - '.github/workflows/verify-route-video.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start an Android 17 emulator
+        shell: bash
+        run: |
+          sdk="$ANDROID_HOME/cmdline-tools/latest/bin"
+          image='system-images;android-37.0;default;x86_64'
+          sudo chmod a+rw /dev/kvm
+          "$sdk/sdkmanager" "emulator" "$image"
+          printf 'no\n' | "$sdk/avdmanager" create avd --force --name route-video --package "$image"
+          "$ANDROID_HOME/emulator/emulator" -avd route-video -no-window -no-audio \
+            -no-boot-anim -no-snapshot -gpu swiftshader_indirect > "$RUNNER_TEMP/route-emulator.log" 2>&1 &
+          timeout 240 bash -c '
+            adb wait-for-device
+            until [ "$(adb shell getprop sys.boot_completed | tr -d "\r")" = 1 ]; do sleep 2; done
+          ' || { tail -100 "$RUNNER_TEMP/route-emulator.log"; exit 1; }
+          adb shell input keyevent 82
+      - name: Install the published APK and open both routes
+        shell: bash
+        run: |
+          apk=$(sed -n 's#.*href="\./\(downloads/1560-route-video-[^"]*\.apk\)".*#\1#p' route-video.html)
+          app=kr.palcheonjo.routevideo1560.capture
+          adb install "$apk"
+          adb shell pm path "$app"
+          adb shell am start -W -n "$app/kr.palcheonjo.routevideo1560.RouteVideoActivity" | grep 'Status: ok'
+          for route in A B; do
+            adb shell am start -S -W -a android.intent.action.VIEW -c android.intent.category.BROWSABLE \
+              -d "routevideo1560capture://record/$route" "$app" | grep 'Status: ok'
+          done
+          adb shell pidof "$app"

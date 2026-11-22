@@ -9,7 +9,7 @@ const guide = read("route-video.html");
 const launchScript = read("route-video-link.js");
 const scrollScript = read("android-route-video/assets/route-scroll.js");
 
-assert.match(guide, /href="\.\/downloads\/1560-route-video\.apk"/);
+assert.match(guide, /href="\.\/downloads\/1560-route-video-1\.2\.apk"/);
 for (const route of ["A", "B"]) {
   assert.match(timetable, new RegExp(`href="\\./route-video\\.html#record-${route}" data-route-video="${route}">● 1560${route} 노선 녹화`));
   assert.match(guide, new RegExp(`id="record-${route}"[^>]*data-route-video="${route}"`));
@@ -20,7 +20,7 @@ for (const route of ["A", "B"]) {
   };
   runInNewContext(launchScript, {document, navigator: {userAgent: "Android"}, URL});
   const fallback = encodeURIComponent(`https://example.com/timetable/route-video.html#record-${route}`);
-  assert.equal(link.href, `intent://record/${route}#Intent;scheme=routevideo1560ab;package=kr.palcheonjo.routevideo1560.ab;S.browser_fallback_url=${fallback};end`);
+  assert.equal(link.href, `intent://record/${route}#Intent;scheme=routevideo1560capture;package=kr.palcheonjo.routevideo1560.capture;S.browser_fallback_url=${fallback};end`);
   assert.equal(link.hidden, false);
 
   const list = {

@@ -5,7 +5,7 @@
     if (route !== "A" && route !== "B") continue;
     const guide = new URL("./route-video.html", document.baseURI);
     guide.hash = "record-" + route;
-    link.href = `intent://record/${route}#Intent;scheme=routevideo1560ab;package=kr.palcheonjo.routevideo1560.ab;`
+    link.href = `intent://record/${route}#Intent;scheme=routevideo1560capture;package=kr.palcheonjo.routevideo1560.capture;`
       + "S.browser_fallback_url=" + encodeURIComponent(guide.href) + ";end";
     link.hidden = false;
   }

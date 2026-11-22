@@ -15,9 +15,9 @@ finally:
 
 for name in ['index.html', 'cctv.html', 'alarm.html', 'timer-records.html']:
     page = root / name
-    html = page.read_text(encoding='utf-8').replace('Rev.205', 'Rev.207').replace('sw.js?v=205', 'sw.js?v=207')
-    html = re.sub(r'(channel=\d+&amp;v=)205', r'\g<1>207', html)
-    html = html.replace("url.searchParams.set('v', '205');", "url.searchParams.set('v', '207');")
+    html = page.read_text(encoding='utf-8').replace('Rev.205', 'Rev.208').replace('sw.js?v=205', 'sw.js?v=208')
+    html = re.sub(r'(channel=\d+&amp;v=)205', r'\g<1>208', html)
+    html = html.replace("url.searchParams.set('v', '205');", "url.searchParams.set('v', '208');")
     if name == 'index.html':
         insert_before = '    <a id="rev110-bus-search"'
         if html.count(insert_before) != 1:
@@ -34,14 +34,14 @@ for name in ['index.html', 'cctv.html', 'alarm.html', 'timer-records.html']:
                  'text-decoration:none;font-weight:850;font-size:15px;touch-action:manipulation}\n'
                  '</style>\n')
         html = html.replace('</head>', style + '</head>', 1)
-        script = '<script src="./route-video-link.js?v=207" defer></script>\n'
+        script = '<script src="./route-video-link.js?v=208" defer></script>\n'
         html = html.replace('</body>', script + '</body>', 1)
     page.write_text(html, encoding='utf-8')
 
 sw = root / 'sw.js'
 code = sw.read_text(encoding='utf-8')
-code = code.replace('1560-timetable-rev205-v1', '1560-timetable-rev207-v1')
-code = code.replace('REVISION="205"', 'REVISION="207"')
+code = code.replace('1560-timetable-rev205-v1', '1560-timetable-rev208-v1')
+code = code.replace('REVISION="205"', 'REVISION="208"')
 code = code.replace('["./alarm.html", "./timer-records.html"]',
                     '["./alarm.html", "./timer-records.html", "./route-video.html"]')
 sw.write_text(code, encoding='utf-8')

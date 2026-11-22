@@ -16,6 +16,7 @@ import android.os.Looper;
 import android.os.ResultReceiver;
 import android.os.SystemClock;
 import android.util.DisplayMetrics;
+import android.view.View;
 import android.view.WindowInsets;
 import android.view.WindowManager;
 import android.webkit.WebResourceError;
@@ -27,6 +28,8 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.window.OnBackInvokedCallback;
+import android.window.OnBackInvokedDispatcher;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -58,6 +61,7 @@ public final class RouteVideoActivity extends Activity {
   private final EnumMap<Route, Uri> latestVideos = new EnumMap<>(Route.class);
   private WebView web;
   private TextView clock;
+  private LinearLayout controls;
   private TextView status;
   private Button routeA;
   private Button routeB;
@@ -77,6 +81,8 @@ public final class RouteVideoActivity extends Activity {
   private int loadGeneration;
   private Intent captureGrant;
   private int captureResult;
+  private int captureAttempt;
+  private OnBackInvokedCallback captureBack;
 
   @Override public void onCreate(Bundle state) {
     super.onCreate(state);
@@ -113,7 +119,7 @@ public final class RouteVideoActivity extends Activity {
   private Route routeFromTimetable(Intent intent) {
     Uri link = intent.getData();
     if (!Intent.ACTION_VIEW.equals(intent.getAction()) || link == null
-        || !"routevideo1560ab".equals(link.getScheme()) || !"record".equals(link.getHost())) return null;
+        || !"routevideo1560capture".equals(link.getScheme()) || !"record".equals(link.getHost())) return null;
     if ("/A".equals(link.getPath())) return Route.A;
     if ("/B".equals(link.getPath())) return Route.B;
     return null;
@@ -165,11 +171,15 @@ public final class RouteVideoActivity extends Activity {
     clock.setPadding(dp(6), dp(8), dp(6), dp(8));
     root.addView(clock, new LinearLayout.LayoutParams(-1, -2));
 
+    controls = new LinearLayout(this);
+    controls.setOrientation(LinearLayout.VERTICAL);
+    root.addView(controls, new LinearLayout.LayoutParams(-1, -2));
+
     LinearLayout routePicker = new LinearLayout(this);
     routePicker.setPadding(dp(8), 0, dp(8), 0);
     routeA = addRouteButton(routePicker, Route.A);
     routeB = addRouteButton(routePicker, Route.B);
-    root.addView(routePicker, new LinearLayout.LayoutParams(-1, -2));
+    controls.addView(routePicker, new LinearLayout.LayoutParams(-1, -2));
 
     LinearLayout toolbar = new LinearLayout(this);
     toolbar.setGravity(android.view.Gravity.CENTER_VERTICAL);
@@ -186,12 +196,12 @@ public final class RouteVideoActivity extends Activity {
     toolbar.addView(play, new LinearLayout.LayoutParams(-2, -2));
     capture = new Button(this);
     capture.setOnClickListener(view -> {
-      if (recording) stopCapture();
-      else if (ready) requestCapture();
+      if (busy()) return;
+      if (ready) requestCapture();
       else if (!loading) loadRoute();
     });
     toolbar.addView(capture, new LinearLayout.LayoutParams(-2, -2));
-    root.addView(toolbar, new LinearLayout.LayoutParams(-1, -2));
+    controls.addView(toolbar, new LinearLayout.LayoutParams(-1, -2));
 
     web = new WebView(this);
     WebSettings settings = web.getSettings();
@@ -293,10 +303,32 @@ public final class RouteVideoActivity extends Activity {
     status.setText(message);
     updateRouteButton(routeA, route == Route.A);
     updateRouteButton(routeB, route == Route.B);
-    capture.setText(recording ? "녹화 끝내기" : ready ? "녹화 시작" : "다시 불러오기");
-    capture.setEnabled(recording || (!busy() && !loading));
+    capture.setText(ready ? "녹화 시작" : "다시 불러오기");
+    capture.setEnabled(!busy() && !loading);
     play.setVisibility(latestVideos.containsKey(route) && !busy()
         ? android.view.View.VISIBLE : android.view.View.GONE);
+    // Keep the date and route visible from the first frame through the last.
+    boolean showingCapture = starting || recording || stopping;
+    controls.setVisibility(showingCapture ? View.GONE : View.VISIBLE);
+    if (Build.VERSION.SDK_INT >= 33) {
+      if (showingCapture && captureBack == null) {
+        captureBack = this::finishFromBack;
+        getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+            OnBackInvokedDispatcher.PRIORITY_DEFAULT, captureBack);
+      } else if (!showingCapture && captureBack != null) {
+        getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(captureBack);
+        captureBack = null;
+      }
+    }
+  }
+
+  private void finishFromBack() {
+    if (starting || recording) stopCapture();
+  }
+
+  @Override public void onBackPressed() {
+    if (starting || recording || stopping) finishFromBack();
+    else super.onBackPressed();
   }
 
   private void updateRouteButton(Button button, boolean selected) {
@@ -334,6 +366,7 @@ public final class RouteVideoActivity extends Activity {
     }
     captureGrant = data;
     captureResult = result;
+    captureAttempt++;
     starting = true;
     update("노선의 맨 위로 이동 중");
     startWhenVisible();
@@ -353,31 +386,51 @@ public final class RouteVideoActivity extends Activity {
     if (captureGrant == null || !hasWindowFocus() || isFinishing()) return;
     Intent grant = captureGrant;
     captureGrant = null;
+    int attempt = captureAttempt;
     web.evaluateJavascript(scrollCall("rewind"), result -> {
-      if (!starting || isFinishing() || isDestroyed()) return;
-      if (!"true".equals(result) || !hasWindowFocus()) {
+      if (!isCurrentAttempt(attempt)) return;
+      if (!"true".equals(result)) {
         starting = false;
         update("노선 화면을 열고 다시 녹화해 주세요.");
         return;
       }
-
-      int[] size = videoSize();
-      Intent service = new Intent(this, RecordingService.class)
-          .putExtra("grant", grant)
-          .putExtra("resultCode", captureResult)
-          .putExtra("receiver", receiver)
-          .putExtra("route", route.number)
-          .putExtra("width", size[0])
-          .putExtra("height", size[1]);
-      try {
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        startForegroundService(service);
-      } catch (RuntimeException error) {
-        starting = false;
-        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        update("녹화를 시작할 수 없습니다.");
+      Runnable launch = () -> startRecorder(grant, attempt);
+      if (web.isHardwareAccelerated()) {
+        web.getViewTreeObserver().registerFrameCommitCallback(() -> handler.post(launch));
+        web.postInvalidateOnAnimation();
+      } else {
+        web.postOnAnimation(() -> web.post(launch));
       }
     });
+  }
+
+  private boolean isCurrentAttempt(int attempt) {
+    return starting && attempt == captureAttempt && !isFinishing() && !isDestroyed();
+  }
+
+  private void startRecorder(Intent grant, int attempt) {
+    if (!isCurrentAttempt(attempt)) return;
+    if (!hasWindowFocus()) {
+      starting = false;
+      update("노선 화면을 열고 다시 녹화해 주세요.");
+      return;
+    }
+    int[] size = videoSize();
+    Intent service = new Intent(this, RecordingService.class)
+        .putExtra("grant", grant)
+        .putExtra("resultCode", captureResult)
+        .putExtra("receiver", receiver)
+        .putExtra("route", route.number)
+        .putExtra("width", size[0])
+        .putExtra("height", size[1]);
+    try {
+      getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+      startForegroundService(service);
+    } catch (RuntimeException error) {
+      starting = false;
+      getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+      update("녹화를 시작할 수 없습니다.");
+    }
   }
 
   private int[] videoSize() {
