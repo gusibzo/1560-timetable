@@ -15,6 +15,29 @@ from threading import Thread
 from playwright.async_api import async_playwright
 
 
+def mp4_header_duration(data):
+    """Read the movie header, rather than inferring length from fragment timestamps."""
+    boxes = []
+    pos = 0
+    while pos < len(data):
+        size = int.from_bytes(data[pos:pos + 4], "big")
+        assert 8 <= size <= len(data) - pos
+        kind = data[pos + 4:pos + 8]
+        boxes.append(kind)
+        if kind == b"moov":
+            # The muxer writes mvhd as the first child of moov.
+            assert data[pos + 12:pos + 16] == b"mvhd"
+            version = data[pos + 16]
+            assert version in (0, 1)
+            tick = pos + (36 if version else 28)
+            scale = int.from_bytes(data[tick:tick + 4], "big")
+            length = int.from_bytes(data[tick + 4:tick + (12 if version else 8)], "big")
+            duration = length / scale
+        pos += size
+    assert b"moof" not in boxes and boxes.index(b"moov") < boxes.index(b"mdat")
+    return duration
+
+
 async def record_route(browser, url, route, output_dir):
     context = await browser.new_context(viewport={"width": 390, "height": 844},
                                         is_mobile=True, has_touch=True, accept_downloads=True)
@@ -104,6 +127,8 @@ async def record_route(browser, url, route, output_dir):
         times = [float(p["pts_time"]) for p in details["packets"] if "pts_time" in p]
         duration = max(times) - min(times)
         assert (stream["width"], stream["height"]) == (720, 1140) and 47 < duration < 56
+        assert path.suffix == ".mp4" and abs(mp4_header_duration(path.read_bytes()) - duration) < 0.5
+        assert "영상 길이" in await page.locator("#status").inner_text()
         # Sample the encoded pixels at the route line on its two directions.
         for second, is_outbound in [(0, True), (int(duration) - 1, False)]:
             sample = subprocess.check_output(["ffmpeg", "-v", "error", "-i", str(path),
@@ -125,9 +150,15 @@ async def record_route(browser, url, route, output_dir):
         print(file.suggested_filename, stream["codec_name"], round(max(times)-min(times), 1), "seconds", flush=True)
         assert not errors, errors
         await page.locator("#start").click()
+        await page.locator("#stop").wait_for()
+        assert not await page.locator("#save").is_visible()
         await page.wait_for_timeout(1400)
         await page.locator("#stop").click()
         await page.wait_for_function("document.querySelector('#status').textContent.includes('여기까지')")
+        async with page.expect_download() as second_download:
+            await page.locator("#save").click()
+        short = await second_download.value
+        assert 0 < mp4_header_duration((await short.path()).read_bytes()) < 10
     finally:
         await context.close()
 
