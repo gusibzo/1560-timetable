@@ -34,9 +34,13 @@ async def record_route(browser, url, route, output_dir):
             callback(stamp);
           });
           window.filmLabels = new Set();
+          window.headingColors = {};
           const fill = CanvasRenderingContext2D.prototype.fillText;
           CanvasRenderingContext2D.prototype.fillText = function (text, ...args) {
             if (this.canvas.id === "film") window.filmLabels.add(text);
+            if (this.canvas.id === "film" && text.startsWith("잔여 ")) {
+              window.headingColors[text] = this.fillStyle;
+            }
             return fill.call(this, text, ...args);
           };
         """)
@@ -58,7 +62,8 @@ async def record_route(browser, url, route, output_dir):
             now = await page.evaluate("new Date().toISOString()")
             buses = [{"seq": positions[i]["seq"], "stationId": positions[i]["id"],
                       "vehicle": vehicle, "seats": seats} for i, (vehicle, seats) in
-                     enumerate([("1234", 45), ("5678", 0), ("6789", None)])]
+                     enumerate([("1234", 45), ("5678", 0), ("6789", None), ("1004", 20),
+                                ("1005", 10), ("1006", 21), ("1007", 11), ("1008", 44)])]
             await request.fulfill(json={"at": now, "route": route, "buses": [] if mode == "empty" else buses})
 
         await page.route(f"**/route-video-data/{route}.json", stale_stations)
@@ -77,8 +82,13 @@ async def record_route(browser, url, route, output_dir):
         assert "마지막 정류장" in await page.locator("#status").inner_text()
         labels = set(await page.evaluate("Array.from(window.filmLabels)"))
         assert {"1560" + route, "기점", "회차", "종점", "경희대정문", "1234", "45석", "0석", "미제공",
-                "운행 3대  ·  1234호  ·  잔여 45석",
+                "운행 8대  ·  1234호  ·  ", "잔여 45석",
                 "신분당선강남역(중) 방면", "경희대학교 방면"} <= labels
+        assert await page.evaluate("window.headingColors") == {
+            "잔여 45석": "#165532", "잔여 0석": "#be2030", "잔여 미제공": "#414c5a",
+            "잔여 20석": "#ad226d", "잔여 10석": "#be2030", "잔여 21석": "#165532",
+            "잔여 11석": "#ad226d", "잔여 44석": "#165532",
+        }
         assert not any("녹화" in label for label in labels)
         assert sum(bool(re.fullmatch(r"\d{4}\.\d{2}\.\d{2} \([일월화수목금토]\) \d{2}:\d{2}:\d{2}", label)) for label in labels) > 10
         async with page.expect_download() as download:
@@ -102,12 +112,15 @@ async def record_route(browser, url, route, output_dir):
             assert len(sample) == 3
             red, green, blue = sample
             assert blue > red + 50 if is_outbound else red > green + 50
-        # The first bus body and green seat badge must survive video encoding.
-        for x, y, channel in [(153, 427, 0), (55, 407, 1)]:
+        # Sample the bus body and the visible badges in the encoded opening frame.
+        for x, y, expected in [(153, 427, (196, 22, 56)), (55, 407, (213, 241, 207)),
+                               (55, 535, (190, 32, 48)), (55, 663, (238, 241, 245)),
+                               (55, 791, (246, 167, 207)), (55, 919, (190, 32, 48)),
+                               (55, 1047, (213, 241, 207))]:
             pixel = subprocess.check_output(["ffmpeg", "-v", "error", "-i", str(path),
                 "-vf", f"crop=2:2:{x}:{y},scale=1:1,format=rgb24", "-frames:v", "1",
                 "-f", "rawvideo", "-"])
-            assert len(pixel) == 3 and pixel[channel] > min(pixel) + 15, (x, y, pixel)
+            assert len(pixel) == 3 and all(abs(a-b) < 28 for a, b in zip(pixel, expected)), (x, y, pixel)
         subprocess.run(["ffmpeg", "-v", "error", "-i", str(path), "-f", "null", "-"], check=True)
         print(file.suggested_filename, stream["codec_name"], round(max(times)-min(times), 1), "seconds", flush=True)
         assert not errors, errors

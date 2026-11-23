@@ -51,6 +51,20 @@
     return Number.isInteger(bus.seats) && bus.seats >= 0 ? bus.seats + "석" : "미제공";
   }
 
+  const seatColors = {
+    green: {fill: "#d5f1cf", text: "#204f26", heading: "#165532"},
+    pink: {fill: "#f6a7cf", text: "#741343", heading: "#ad226d"},
+    red: {fill: "#be2030", text: "#ffffff", heading: "#be2030"},
+    unknown: {fill: "#eef1f5", text: "#414c5a", heading: "#414c5a"}
+  };
+
+  function seatColor(seats) {
+    if (!Number.isInteger(seats) || seats < 0) return seatColors.unknown;
+    if (seats <= 10) return seatColors.red;
+    if (seats <= 20) return seatColors.pink;
+    return seatColors.green;
+  }
+
   function drawHeading(now, observation, elapsed) {
     const center = film.width / 2;
     rect(0, 0, film.width, 144, "#f2f4f8");
@@ -63,8 +77,12 @@
     if (buses.length) {
       const bus = buses[Math.floor(elapsed / 3500) % buses.length];
       const number = bus.vehicle ? bus.vehicle + "호" : "번호 미상";
-      label("운행 " + buses.length + "대  ·  " + number + "  ·  잔여 " + seatLabel(bus),
-        center, 256, 34, "#165532", 700, "center");
+      const prefix = "운행 " + buses.length + "대  ·  " + number + "  ·  ";
+      const seats = "잔여 " + seatLabel(bus);
+      ctx.font = "700 34px system-ui,Noto Sans KR,Noto Sans CJK KR,sans-serif";
+      const left = center - ctx.measureText(prefix + seats).width / 2;
+      label(prefix, left, 256, 34, "#165532", 700);
+      label(seats, left + ctx.measureText(prefix).width, 256, 34, seatColor(bus.seats).heading, 700);
     } else {
       label(data.regions || "서울, 수원, 용인", center, 254, 30, ink, 600, "center");
     }
@@ -93,7 +111,8 @@
 
   function vehicle(bus, middle) {
     busSymbol(151, middle - 25);
-    pill(29, middle - 33, 114, 37, "#d5f1cf", seatLabel(bus), 29, "#204f26");
+    const color = seatColor(bus.seats);
+    pill(29, middle - 33, 114, 37, color.fill, seatLabel(bus), 29, color.text);
     label(bus.vehicle || "번호 미상", 86, middle + 32, 29, ink, 700, "center");
   }
 
