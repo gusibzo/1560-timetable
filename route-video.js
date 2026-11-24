@@ -65,7 +65,7 @@
     return seatColors.green;
   }
 
-  function drawHeading(now, observation, elapsed) {
+  function drawHeading(now, observation, bus) {
     const center = film.width / 2;
     rect(0, 0, film.width, 144, "#f2f4f8");
     label("버스 위치", center, 54, 36, ink, 700, "center");
@@ -74,8 +74,7 @@
     label("1560" + route, center - 26, 207, 51, "#b51336", 800);
     if (!data) return;
     const buses = observation?.buses || [];
-    if (buses.length) {
-      const bus = buses[Math.floor(elapsed / 3500) % buses.length];
+    if (bus) {
       const number = bus.vehicle ? bus.vehicle + "호" : "번호 미상";
       const prefix = "운행 " + buses.length + "대  ·  " + number + "  ·  ";
       const seats = "잔여 " + seatLabel(bus);
@@ -83,6 +82,8 @@
       const left = center - ctx.measureText(prefix + seats).width / 2;
       label(prefix, left, 256, 34, "#165532", 700);
       label(seats, left + ctx.measureText(prefix).width, 256, 34, seatColor(bus.seats).heading, 700);
+    } else if (buses.length) {
+      label("운행 " + buses.length + "대", center, 256, 34, "#165532", 700, "center");
     } else {
       label(data.regions || "서울, 수원, 용인", center, 254, 30, ink, 600, "center");
     }
@@ -141,16 +142,42 @@
     label(display, x, y, 35, passing ? "#697481" : ink, 600);
   }
 
-  function draw(offset = 0, observation = snapshot(Date.now()), elapsed = 0) {
-    rect(0, 0, film.width, film.height, "#fff");
-    drawHeading(new Date(), observation, elapsed);
-    if (!data) return;
-    ctx.save(); ctx.beginPath(); ctx.rect(0, listTop, film.width, visible); ctx.clip();
+  // Compute the exact markers painted in this frame once. The heading must
+  // reference a visible marker, including when several buses share a stop.
+  function visibleRows(offset, observation) {
+    const rows = [];
+    if (!data) return rows;
+    const busesByStop = new Map();
+    for (const bus of observation?.buses || []) {
+      if (!busesByStop.has(bus.seq)) busesByStop.set(bus.seq, []);
+      busesByStop.get(bus.seq).push(bus);
+    }
     const first = Math.floor(offset / rowHeight);
     for (let i = first; i < data.stops.length; i++) {
       const station = data.stops[i], y = listTop + i * rowHeight - offset;
       if (y >= film.height) break;
-      const middle = y + rowHeight / 2, last = i === data.stops.length - 1;
+      const middle = y + rowHeight / 2;
+      const buses = busesByStop.get(station.seq) || [];
+      const vehicles = buses.length === 2 ? [
+        {bus: buses[0], middle: middle - 30}, {bus: buses[1], middle: middle + 31}
+      ] : buses.length ? [{bus: buses[0], middle: middle - (buses.length > 2 ? 17 : 0)}] : [];
+      rows.push({station, i, y, middle, vehicles, hiddenCount: buses.length - vehicles.length});
+    }
+    return rows;
+  }
+
+  function draw(offset = 0, observation = snapshot(Date.now())) {
+    const rows = visibleRows(offset, observation);
+    // Follow the first fully readable bus from the top of the scrolling list.
+    // Don't show a vehicle number when its seat badge/number is clipped or offscreen.
+    const focused = rows.flatMap(row => row.vehicles).find(({middle}) =>
+      middle - 33 >= listTop && middle + 38 <= film.height);
+    rect(0, 0, film.width, film.height, "#fff");
+    drawHeading(new Date(), observation, focused?.bus);
+    if (!data) return;
+    ctx.save(); ctx.beginPath(); ctx.rect(0, listTop, film.width, visible); ctx.clip();
+    for (const {station, i, y, middle, vehicles, hiddenCount} of rows) {
+      const last = i === data.stops.length - 1;
       const color = turnIndex >= 0 && i > turnIndex ? inbound : outbound;
       rect(0, y + rowHeight - 2, film.width, 2, "#e1e4e8");
       if (i > 0) rect(rail - 4.5, y, 9, rowHeight / 2, color);
@@ -164,15 +191,8 @@
       if (kind) pill(nameX, y + 73, 68, 33, color, kind, 22, "#fff");
       label([station.number, station.area].filter(Boolean).join(" | "), nameX + (kind ? 79 : 0),
         y + 99, 29, "#35414e");
-      const buses = observation?.buses.filter(bus => bus.seq === station.seq) || [];
-      if (buses.length === 1) vehicle(buses[0], middle);
-      if (buses.length === 2) {
-        vehicle(buses[0], middle - 30); vehicle(buses[1], middle + 31);
-      }
-      if (buses.length > 2) {
-        vehicle(buses[0], middle - 17);
-        label("외 " + (buses.length - 1) + "대", 113, y + 111, 24, ink, 600, "center");
-      }
+      for (const marker of vehicles) vehicle(marker.bus, marker.middle);
+      if (hiddenCount) label("외 " + hiddenCount + "대", 113, y + 111, 24, ink, 600, "center");
     }
     ctx.restore();
   }
@@ -306,7 +326,7 @@
     const begin = performance.now(), bottom = Math.max(0, data.stops.length * rowHeight - visible);
     function tick(now) {
       const elapsed = Math.max(0, now - begin);
-      draw(Math.min(bottom, Math.max(0, elapsed - 900) * pixelsPerSecond / 1000), observation, elapsed);
+      draw(Math.min(bottom, Math.max(0, elapsed - 900) * pixelsPerSecond / 1000), observation);
       if (elapsed >= 1900 + 1000 * bottom / pixelsPerSecond) finish("마지막 정류장까지 녹화했습니다.");
       else run.frame = requestAnimationFrame(tick);
     }

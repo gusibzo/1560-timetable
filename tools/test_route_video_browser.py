@@ -58,11 +58,47 @@ async def record_route(browser, url, route, output_dir):
           });
           window.filmLabels = new Set();
           window.headingColors = {};
+          window.frameSync = {matched: 0, empty: 0, errors: []};
+          let frame;
+          const checkFrame = () => {
+            if (!frame?.heading?.startsWith("운행 ")) return;
+            const first = frame.vehicles[0];
+            const actual = frame.heading + (frame.seats || "");
+            const count = frame.heading.split("대")[0] + "대";
+            const number = first?.number === "번호 미상" ? first.number : first?.number + "호";
+            const expected = first ? count + "  ·  " + number + "  ·  잔여 " + first.seats : count;
+            if (actual !== expected) {
+              if (window.frameSync.errors.length < 10) window.frameSync.errors.push({actual, expected});
+            } else if (first) window.frameSync.matched++;
+            else window.frameSync.empty++;
+          };
+          const fillRect = CanvasRenderingContext2D.prototype.fillRect;
+          CanvasRenderingContext2D.prototype.fillRect = function(x, y, w, h) {
+            if (this.canvas.id === "film" && x === 0 && y === 0 &&
+                w === this.canvas.width && h === this.canvas.height) {
+              checkFrame();
+              frame = {vehicles: []};
+            }
+            return fillRect.call(this, x, y, w, h);
+          };
           const fill = CanvasRenderingContext2D.prototype.fillText;
           CanvasRenderingContext2D.prototype.fillText = function (text, ...args) {
             if (this.canvas.id === "film") window.filmLabels.add(text);
             if (this.canvas.id === "film" && text.startsWith("잔여 ")) {
               window.headingColors[text] = this.fillStyle;
+            }
+            if (this.canvas.id === "film" && frame) {
+              const [x, y] = args;
+              if (y === 256 && text.startsWith("운행 ")) frame.heading = text;
+              if (y === 256 && text.startsWith("잔여 ")) frame.seats = text;
+              if (x === 86 && /^(\\d+석|미제공)$/.test(text)) frame.badge = text;
+              else if (x === 86 && frame.badge !== undefined) {
+                const middle = y - 32;
+                if (middle - 33 >= 372 && middle + 38 <= this.canvas.height) {
+                  frame.vehicles.push({number: text, seats: frame.badge});
+                }
+                delete frame.badge;
+              }
             }
             return fill.call(this, text, ...args);
           };
@@ -87,6 +123,11 @@ async def record_route(browser, url, route, output_dir):
                       "vehicle": vehicle, "seats": seats} for i, (vehicle, seats) in
                      enumerate([("1234", 45), ("5678", 0), ("6789", None), ("1004", 20),
                                 ("1005", 10), ("1006", 21), ("1007", 11), ("1008", 44)])]
+            # Feed order can differ from stop order. The heading follows the painted row.
+            if mode == "clustered":
+                for bus, i in zip(buses, [0, 0, 0, 1, 1, 4, 5, 7]):
+                    bus.update(seq=positions[i]["seq"], stationId=positions[i]["id"])
+            buses.reverse()
             await request.fulfill(json={"at": now, "route": route, "buses": [] if mode == "empty" else buses})
 
         await page.route(f"**/route-video-data/{route}.json", stale_stations)
@@ -112,6 +153,9 @@ async def record_route(browser, url, route, output_dir):
             "잔여 20석": "#ad226d", "잔여 10석": "#be2030", "잔여 21석": "#165532",
             "잔여 11석": "#ad226d", "잔여 44석": "#165532",
         }
+        sync = await page.evaluate("window.frameSync")
+        assert not sync["errors"] and sync["matched"] > 10 and sync["empty"] > 10, sync
+        print(f"1560{route}: {sync['matched']} matched frames, {sync['empty']} without visible vehicles", flush=True)
         assert not any("녹화" in label for label in labels)
         assert sum(bool(re.fullmatch(r"\d{4}\.\d{2}\.\d{2} \([일월화수목금토]\) \d{2}:\d{2}:\d{2}", label)) for label in labels) > 10
         async with page.expect_download() as download:
@@ -149,6 +193,7 @@ async def record_route(browser, url, route, output_dir):
         subprocess.run(["ffmpeg", "-v", "error", "-i", str(path), "-f", "null", "-"], check=True)
         print(file.suggested_filename, stream["codec_name"], round(max(times)-min(times), 1), "seconds", flush=True)
         assert not errors, errors
+        mode = "clustered"
         await page.locator("#start").click()
         await page.locator("#stop").wait_for()
         assert not await page.locator("#save").is_visible()
@@ -159,6 +204,7 @@ async def record_route(browser, url, route, output_dir):
             await page.locator("#save").click()
         short = await second_download.value
         assert 0 < mp4_header_duration((await short.path()).read_bytes()) < 10
+        assert not (await page.evaluate("window.frameSync"))["errors"]
     finally:
         await context.close()
 
