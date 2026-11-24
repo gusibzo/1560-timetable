@@ -45,5 +45,5 @@ for name in ['index.html', 'cctv.html', 'alarm.html', 'timer-records.html']:
 
 sw = root / 'sw.js'
 code = sw.read_text(encoding='utf-8').replace('1560-timetable-rev209-v1', '1560-timetable-rev211-v1')
-code = code.replace('"./route-video.js?v=209"', '"./route-video.js?v=211-seat-sync","./route-video-mp4.mjs","./vendor/mediabunny-1.66.2/mediabunny.min.mjs"')
+code = code.replace('"./route-video.js?v=209"', '"./route-video.js?v=211-seat-blue","./route-video-mp4.mjs","./vendor/mediabunny-1.66.2/mediabunny.min.mjs"')
 sw.write_text(code.replace('REVISION="209"', 'REVISION="211"'), encoding='utf-8')

@@ -58,6 +58,7 @@ async def record_route(browser, url, route, output_dir):
           });
           window.filmLabels = new Set();
           window.headingColors = {};
+          window.badgeColors = {};
           window.frameSync = {matched: 0, empty: 0, errors: []};
           let frame;
           const checkFrame = () => {
@@ -91,7 +92,10 @@ async def record_route(browser, url, route, output_dir):
               const [x, y] = args;
               if (y === 256 && text.startsWith("운행 ")) frame.heading = text;
               if (y === 256 && text.startsWith("잔여 ")) frame.seats = text;
-              if (x === 86 && /^(\\d+석|미제공)$/.test(text)) frame.badge = text;
+              if (x === 86 && /^(\\d+석|미제공)$/.test(text)) {
+                frame.badge = text;
+                window.badgeColors[text] = this.fillStyle;
+              }
               else if (x === 86 && frame.badge !== undefined) {
                 const middle = y - 32;
                 if (middle - 33 >= 372 && middle + 38 <= this.canvas.height) {
@@ -121,8 +125,9 @@ async def record_route(browser, url, route, output_dir):
             now = await page.evaluate("new Date().toISOString()")
             buses = [{"seq": positions[i]["seq"], "stationId": positions[i]["id"],
                       "vehicle": vehicle, "seats": seats} for i, (vehicle, seats) in
-                     enumerate([("1234", 45), ("5678", 0), ("6789", None), ("1004", 20),
-                                ("1005", 10), ("1006", 21), ("1007", 11), ("1008", 44)])]
+                     enumerate([("3452", 18), ("6771", 19), ("6789", None), ("1004", 20),
+                                ("1005", 10), ("1006", 21), ("1007", 11), ("1008", 44),
+                                ("1234", 45), ("3486", 0), ("1012", 12), ("1013", 13)])]
             # Feed order can differ from stop order. The heading follows the painted row.
             if mode == "clustered":
                 for bus, i in zip(buses, [0, 0, 0, 1, 1, 4, 5, 7]):
@@ -146,13 +151,16 @@ async def record_route(browser, url, route, output_dir):
         assert "마지막 정류장" in await page.locator("#status").inner_text()
         labels = set(await page.evaluate("Array.from(window.filmLabels)"))
         assert {"1560" + route, "기점", "회차", "종점", "경희대정문", "1234", "45석", "0석", "미제공",
-                "운행 8대  ·  1234호  ·  ", "잔여 45석",
+                "운행 12대  ·  3452호  ·  ", "잔여 18석", "운행 12대  ·  6771호  ·  ", "잔여 19석",
                 "신분당선강남역(중) 방면", "경희대학교 방면"} <= labels
         assert await page.evaluate("window.headingColors") == {
             "잔여 45석": "#165532", "잔여 0석": "#be2030", "잔여 미제공": "#414c5a",
-            "잔여 20석": "#ad226d", "잔여 10석": "#be2030", "잔여 21석": "#165532",
+            "잔여 20석": "#0066ff", "잔여 10석": "#be2030", "잔여 21석": "#165532",
             "잔여 11석": "#ad226d", "잔여 44석": "#165532",
+            "잔여 12석": "#ad226d", "잔여 13석": "#0066ff", "잔여 18석": "#0066ff", "잔여 19석": "#0066ff",
         }
+        badges = await page.evaluate("window.badgeColors")
+        assert {seats for seats, color in badges.items() if color == "#0066ff"} == {"13석", "18석", "19석", "20석"}
         sync = await page.evaluate("window.frameSync")
         assert not sync["errors"] and sync["matched"] > 10 and sync["empty"] > 10, sync
         print(f"1560{route}: {sync['matched']} matched frames, {sync['empty']} without visible vehicles", flush=True)
@@ -181,10 +189,10 @@ async def record_route(browser, url, route, output_dir):
             assert len(sample) == 3
             red, green, blue = sample
             assert blue > red + 50 if is_outbound else red > green + 50
-        # Sample the bus body and the visible badges in the encoded opening frame.
-        for x, y, expected in [(153, 427, (196, 22, 56)), (55, 407, (213, 241, 207)),
-                               (55, 535, (190, 32, 48)), (55, 663, (238, 241, 245)),
-                               (55, 791, (246, 167, 207)), (55, 919, (190, 32, 48)),
+        # The 18- and 19-seat badges are blue next to red bus bodies in the opening frame.
+        for x, y, expected in [(153, 427, (196, 22, 56)), (153, 555, (196, 22, 56)),
+                               (55, 407, (229, 240, 255)), (55, 535, (229, 240, 255)),
+                               (55, 663, (238, 241, 245)), (55, 791, (229, 240, 255)), (55, 919, (190, 32, 48)),
                                (55, 1047, (213, 241, 207))]:
             pixel = subprocess.check_output(["ffmpeg", "-v", "error", "-i", str(path),
                 "-vf", f"crop=2:2:{x}:{y},scale=1:1,format=rgb24", "-frames:v", "1",

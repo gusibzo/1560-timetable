@@ -53,6 +53,7 @@
 
   const seatColors = {
     green: {fill: "#d5f1cf", text: "#204f26", heading: "#165532"},
+    blue: {fill: "#e5f0ff", text: "#0066ff", heading: "#0066ff"},
     pink: {fill: "#f6a7cf", text: "#741343", heading: "#ad226d"},
     red: {fill: "#be2030", text: "#ffffff", heading: "#be2030"},
     unknown: {fill: "#eef1f5", text: "#414c5a", heading: "#414c5a"}
@@ -61,7 +62,9 @@
   function seatColor(seats) {
     if (!Number.isInteger(seats) || seats < 0) return seatColors.unknown;
     if (seats <= 10) return seatColors.red;
-    if (seats <= 20) return seatColors.pink;
+    if (seats <= 12) return seatColors.pink;
+    // GBIS displays a blue seat count from 13 through 20.
+    if (seats <= 20) return seatColors.blue;
     return seatColors.green;
   }
 
